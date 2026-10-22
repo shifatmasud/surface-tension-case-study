@@ -297,6 +297,9 @@ const load=()=>mod||(mod=new Promise(r=>{const l=document.createElement('link');
 const unlock=()=>{try{const A=window.AudioContext||window.webkitAudioContext;if(!A)return;const c=window.__giftAC;if(!c||c.state==='closed')window.__giftAC=new A();else c.resume()}catch(e){}};
 const open=el=>{if(busy||document.documentElement.classList.contains('gift-open'))return;busy=1;unlock();try{getSelection().removeAllRanges()}catch(e){}
 load().then(m=>m.giftOpen(el)).catch(()=>{}).finally(()=>{busy=0})};
+[head,foot].forEach(el=>{if(!el)return;let t=0,replay=0; /* Shifat 1:53 PM: a double-click must not also fire the single-click scroll; single click waits 280 ms */
+el.addEventListener('click',e=>{if(replay)return;e.preventDefault();e.stopImmediatePropagation();clearTimeout(t);if(e.detail>1)return;t=setTimeout(()=>{replay=1;try{el.click()}finally{replay=0}},280)},true);
+el.addEventListener('dblclick',()=>clearTimeout(t),true)});
 [head,foot].forEach(el=>{if(!el)return;
 el.addEventListener('dblclick',e=>{e.preventDefault();open(el)});
 el.addEventListener('pointerup',e=>{if(e.pointerType!=='touch')return;const t=e.timeStamp;if(t-lastT<330&&Math.abs(e.clientX-lastX)<40&&Math.abs(e.clientY-lastY)<40){lastT=0;open(el)}else{lastT=t;lastX=e.clientX;lastY=e.clientY}})});
