@@ -192,3 +192,5 @@ html.foot-glbar .overscroll__bar::before,html.foot-glbar .overscroll__bar::after
 
 /* R6.81: the 0.8 s hold at the top after a rubber-band loop (touch screens: stops momentum) */
 html.cs-hold{overflow:hidden}
+
+.decide__h{margin:var(--s4,32px) 0 12px;font-size:1.05rem;letter-spacing:-.01em}.decide{margin:0 0 var(--s4,32px);display:flex;flex-direction:column;gap:10px;max-width:560px}.msg{max-width:88%;padding:12px 16px;border-radius:18px;font-size:.95rem;line-height:1.45}.msg p{margin:0}.msg__who{display:block;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;opacity:.6;margin-bottom:4px}.msg--zero{align-self:flex-start;background:var(--c-silver-1,#f1f1f1);color:var(--c-ink,#0b0b0b);border-bottom-left-radius:6px}.msg--me{align-self:flex-end;background:var(--c-ink,#0b0b0b);color:#fff;border-bottom-right-radius:6px}.decide figcaption{margin-top:6px;font-size:.85rem;color:var(--c-silver-3,#777)}
