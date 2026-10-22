@@ -286,3 +286,20 @@ addEventListener('resize',()=>{dirty=1;kick()});addEventListener('cs-barf',()=>k
 document.fonts&&document.fonts.ready&&document.fonts.ready.then(()=>{dirty=1;kick()})}
 new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting)){init()}},{rootMargin:'600px 0px'}).observe(ft);
 })();
+(()=>{/* GIFT (Shifat Oct 22 9:53 AM "Lets keep og logo click function. Double click should trigger the gift in both site"):
+a double-click (or a double-tap) on the header wordmark or the footer lockup opens the 3D gift box; a single click does
+exactly what it did before. The footer lockup also opens it with Enter / Space. The gift (gift/gift.js + gift.css, three.js
+inside) is fetched on the first double-click only, so nothing of it loads with the page. */
+const me=document.currentScript,src=(me&&me.src)||location.href,u=p=>new URL(p,src).href;
+const head=document.querySelector('.top .wordmark'),foot=document.querySelector('.site-footer__name');if(!head&&!foot)return;
+let mod=null,busy=0,lastT=0,lastX=0,lastY=0;
+const load=()=>mod||(mod=new Promise(r=>{const l=document.createElement('link');l.rel='stylesheet';l.href=u('gift/gift.css');l.onload=l.onerror=r;document.head.appendChild(l)}).then(()=>import(u('gift/gift.js'))).catch(e=>{mod=null;throw e}));
+const unlock=()=>{try{const A=window.AudioContext||window.webkitAudioContext;if(!A)return;const c=window.__giftAC;if(!c||c.state==='closed')window.__giftAC=new A();else c.resume()}catch(e){}};
+const open=el=>{if(busy||document.documentElement.classList.contains('gift-open'))return;busy=1;unlock();try{getSelection().removeAllRanges()}catch(e){}
+load().then(m=>m.giftOpen(el)).catch(()=>{}).finally(()=>{busy=0})};
+[head,foot].forEach(el=>{if(!el)return;
+el.addEventListener('dblclick',e=>{e.preventDefault();open(el)});
+el.addEventListener('pointerup',e=>{if(e.pointerType!=='touch')return;const t=e.timeStamp;if(t-lastT<330&&Math.abs(e.clientX-lastX)<40&&Math.abs(e.clientY-lastY)<40){lastT=0;open(el)}else{lastT=t;lastX=e.clientX;lastY=e.clientY}})});
+if(foot){foot.setAttribute('role','button');foot.tabIndex=0;foot.setAttribute('aria-haspopup','dialog');foot.style.touchAction='manipulation';
+foot.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open(foot)}})}
+})();
