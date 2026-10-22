@@ -130,31 +130,45 @@ const size=()=>{document.documentElement.style.setProperty('--fh',ft.offsetHeigh
 const set=v=>{const s=v.toFixed(3);f.style.setProperty('--f',s);bar.style.setProperty('--f',s);dispatchEvent(new Event('cs-barf'))};
 // after the wrap the rest of the push (wheel inertia) is dropped until it pauses (450 ms), max 1.8 s, so it cannot carry you down from the top
 let muteUntil=0,muteCap=0;const mute=e=>{const t=performance.now();if(t<muteUntil){if(e.cancelable)e.preventDefault();muteUntil=Math.min(muteCap,t+450)}else removeEventListener('wheel',mute,{passive:false})};
-const wrap=()=>{fired=1;const t=performance.now();muteUntil=t+600;muteCap=t+1800;addEventListener('wheel',mute,{passive:false});scrollTo({top:0,behavior:'instant'});setTimeout(()=>fired=0,900)};
+// R6.81 (Shifat Oct 22 05:12 "auto fill to 100% and loop back to top & stop scroll a bit moment"): after a rubber-band loop
+// the page HOLDS at the top for 0.8 s: wheel, finger and scroll keys do nothing (touch screens also stop any momentum)
+const HOLD=800,coarse=matchMedia('(hover: none) and (pointer: coarse)');let holdUntil=0;
+const block=e=>{if(performance.now()<holdUntil){if(e.cancelable)e.preventDefault()}};
+const blockKey=e=>{if(performance.now()<holdUntil&&/^(ArrowDown|ArrowUp|PageDown|PageUp|End|Home| )$/.test(e.key))e.preventDefault()};
+const hold=()=>{const d=document.documentElement;holdUntil=performance.now()+HOLD;const nf={passive:false};
+addEventListener('touchmove',block,nf);addEventListener('wheel',block,nf);addEventListener('keydown',blockKey,true);if(coarse.matches)d.classList.add('cs-hold');
+setTimeout(()=>{removeEventListener('touchmove',block,nf);removeEventListener('wheel',block,nf);removeEventListener('keydown',blockKey,true);d.classList.remove('cs-hold')},HOLD)};
+const wrap=h=>{fired=1;const t=performance.now();muteUntil=t+(h?HOLD:600);muteCap=t+1800;addEventListener('wheel',mute,{passive:false});scrollTo({top:0,behavior:'instant'});if(h)hold();setTimeout(()=>fired=0,900)};
 const RMq=matchMedia('(prefers-reduced-motion: reduce)');
 const u=()=>{p=0;if(!RMq.matches)return;const d=document.documentElement,m=d.scrollHeight-innerHeight,rw=sp.offsetHeight,v=rw>0?Math.min(1,Math.max(0,(scrollY-(m-rw)+2)/Math.max(1,rw-6))):0;set(v);
 if(v>0.985&&!fired)wrap()};
 addEventListener('scroll',()=>{if(!p)p=requestAnimationFrame(u)},{passive:true});addEventListener('resize',()=>{size();u()});size();u();
 // the rubber band (same numbers as the portfolio's services/loopPull.ts)
-const WK=1150,WC=120,TK=.6,KS=.05,LEAK=.3,GRACE=.13,SPRING=6.5,ARM=.3;
-let pull=0,lastPush=-1e9,restSince=-1,finger=0,fy=0,raf=0,last=0,shown=-1;
+// R6.81: past 80 % it is the point of no return: a tiny buzz (Android, once the visitor has tapped the page; the browser's
+// rule), then the bar fills itself to 100 % (0.3 s ease) and loops; pushing back no longer drains it
+const WK=1150,WC=120,TK=.6,KS=.05,LEAK=.3,GRACE=.13,SPRING=6.5,ARM=.3,COMMIT=.8,AUTO=.3;
+let pull=0,lastPush=-1e9,restSince=-1,finger=0,fy=0,raf=0,last=0,shown=-1,cAt=-1,cFrom=0;
 const now=()=>performance.now()/1000,atEnd=()=>scrollY>=document.documentElement.scrollHeight-innerHeight-2;
+const buzz=()=>{try{const n=navigator;if(typeof n.vibrate==='function'&&(!n.userActivation||n.userActivation.hasBeenActive))n.vibrate(10)}catch(e){}};
+const commit=()=>{if(cAt>=0)return;pull=Math.min(pull,COMMIT);cAt=now();cFrom=pull;buzz();go()};
 const step=t=>{raf=0;const dt=Math.min(.1,Math.max(0,(t-last)/1000));last=t;const T=now();
+if(cAt>=0){const k=Math.min(1,(T-cAt)/AUTO);pull=cFrom+(1-cFrom)*(1-Math.pow(1-k,3));if(Math.abs(pull-shown)>1e-4){shown=pull;set(pull)}
+if(k>=1){cAt=-1;pull=0;restSince=-1;if(!fired)wrap(1)}else raf=requestAnimationFrame(step);return}
 if(atEnd()){if(restSince<0)restSince=T}else{restSince=-1;pull=Math.max(0,pull-dt*SPRING*2*pull)}
 if(pull>0){pull=Math.max(0,pull-LEAK*dt);if(!finger&&T-lastPush>GRACE)pull*=Math.exp(-SPRING*dt);if(pull<.002)pull=0}
 if(Math.abs(pull-shown)>1e-4){shown=pull;set(pull)}
-if(pull>.985&&!fired){pull=0;restSince=-1;wrap()}
+if(pull>=COMMIT){commit();return}
 if(pull>0||(restSince>=0&&(finger||T-restSince<ARM)))raf=requestAnimationFrame(step)};
 const go=()=>{if(!raf&&!RMq.matches){last=performance.now();raf=requestAnimationFrame(step)}};
-const push=v=>{go();if(RMq.matches||!atEnd()||restSince<0||now()-restSince<ARM)return;pull=Math.min(1,pull+v);lastPush=now()};
+const push=v=>{go();if(cAt>=0||RMq.matches||!atEnd()||restSince<0||now()-restSince<ARM)return;pull=Math.min(1,pull+v);lastPush=now();if(pull>=COMMIT)commit()};
 addEventListener('scroll',go,{passive:true});
 addEventListener('wheel',e=>{if(e.ctrlKey)return;let dy=e.deltaY;if(Math.abs(e.deltaX)>Math.abs(dy))return;if(e.deltaMode===1)dy*=40;else if(e.deltaMode===2)dy*=800;
-if(dy>0)push(Math.min(dy,WC)/WK);else if(dy<0){pull=Math.max(0,pull+dy/WK*3);go()}},{passive:true});
+if(dy>0)push(Math.min(dy,WC)/WK);else if(dy<0&&cAt<0){pull=Math.max(0,pull+dy/WK*3);go()}},{passive:true});
 addEventListener('touchstart',e=>{finger=e.touches.length===1?1:0;fy=e.touches[0]?e.touches[0].clientY:0;go()},{passive:true});
-addEventListener('touchmove',e=>{if(!finger||e.touches.length!==1)return;const y=e.touches[0].clientY,dy=y-fy;fy=y;const k=TK*innerHeight;if(dy<0)push(-dy/k);else if(dy>0){pull=Math.max(0,pull-dy/k*2);go()}},{passive:true});
+addEventListener('touchmove',e=>{if(!finger||e.touches.length!==1)return;const y=e.touches[0].clientY,dy=y-fy;fy=y;const k=TK*innerHeight;if(dy<0)push(-dy/k);else if(dy>0&&cAt<0){pull=Math.max(0,pull-dy/k*2);go()}},{passive:true});
 const up=()=>{finger=0;go()};addEventListener('touchend',up,{passive:true});addEventListener('touchcancel',up,{passive:true});
 addEventListener('keydown',e=>{if(e.altKey||e.ctrlKey||e.metaKey)return;const t=e.target;if(t&&(t.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)))return;if(e.key==='ArrowDown'||e.key==='PageDown'||(e.key===' '&&!e.shiftKey))push(KS)});
-window.__csPull={get value(){return pull}};go()}
+window.__csPull={get value(){return pull},get committed(){return cAt>=0}};go()}
 })();
 (()=>{/* GPU footer bar (Shifat 06:33Z "Gpu version"): the portfolio's lime glow bar drawn in WebGL (footerWorld.ts footBar,
 layer for layer) and bent by the portfolio's cursor trail (ScreenPaint.ts + ScreenPaintDistortion, same numbers), on one small
