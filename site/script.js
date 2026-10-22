@@ -121,12 +121,40 @@ state();return P}).filter(Boolean);
 if(!('IntersectionObserver' in window)){P0.forEach(P=>P.setVis(1));return}
 const io=new IntersectionObserver(es=>{for(const e of es){const P=P0.find(p=>p.vp===e.target);if(P)P.setVis(e.isIntersecting)}},{rootMargin:'200px 0px',threshold:.15});P0.forEach(P=>io.observe(P.vp));
 })();
-(()=>{/* footer progress bar: the footer holds while the bar fills over the runway, then wraps to the top */
+(()=>{/* footer progress bar. R6.80 (Shifat Oct 22 "scroll hard to loop to top", "Rubber band is enough"): the footer is the
+end of the page; scrolling on past it only stretches the bar, which springs back to 0 when the input stops; only a hard,
+sustained push (wheel, finger or held key) outruns the leak and fills it, and a full bar wraps to the top. Passive listeners;
+the rAF runs only while the bar is stretched. Reduced motion keeps the old runway (native scroll fills the bar). */
 const f=document.querySelector('.overscroll__fill'),ft=document.querySelector('.site-footer'),sp=document.querySelector('.footer-spacer');if(f&&ft&&sp){let p=0,fired=0;const bar=f.closest('.overscroll__bar');
 const size=()=>{document.documentElement.style.setProperty('--fh',ft.offsetHeight+'px')};
-const u=()=>{p=0;const d=document.documentElement,m=d.scrollHeight-innerHeight,rw=sp.offsetHeight,v=rw>0?Math.min(1,Math.max(0,(scrollY-(m-rw)+2)/Math.max(1,rw-6))):0;f.style.setProperty('--f',v.toFixed(3));bar.style.setProperty('--f',v.toFixed(3));
-if(v>0.985&&!fired){fired=1;scrollTo({top:0,behavior:'instant'});setTimeout(()=>fired=0,900)}};
-addEventListener('scroll',()=>{if(!p)p=requestAnimationFrame(u)},{passive:true});addEventListener('resize',()=>{size();u()});size();u()}
+const set=v=>{const s=v.toFixed(3);f.style.setProperty('--f',s);bar.style.setProperty('--f',s);dispatchEvent(new Event('cs-barf'))};
+// after the wrap the rest of the push (wheel inertia) is dropped until it pauses (450 ms), max 1.8 s, so it cannot carry you down from the top
+let muteUntil=0,muteCap=0;const mute=e=>{const t=performance.now();if(t<muteUntil){if(e.cancelable)e.preventDefault();muteUntil=Math.min(muteCap,t+450)}else removeEventListener('wheel',mute,{passive:false})};
+const wrap=()=>{fired=1;const t=performance.now();muteUntil=t+600;muteCap=t+1800;addEventListener('wheel',mute,{passive:false});scrollTo({top:0,behavior:'instant'});setTimeout(()=>fired=0,900)};
+const RMq=matchMedia('(prefers-reduced-motion: reduce)');
+const u=()=>{p=0;if(!RMq.matches)return;const d=document.documentElement,m=d.scrollHeight-innerHeight,rw=sp.offsetHeight,v=rw>0?Math.min(1,Math.max(0,(scrollY-(m-rw)+2)/Math.max(1,rw-6))):0;set(v);
+if(v>0.985&&!fired)wrap()};
+addEventListener('scroll',()=>{if(!p)p=requestAnimationFrame(u)},{passive:true});addEventListener('resize',()=>{size();u()});size();u();
+// the rubber band (same numbers as the portfolio's services/loopPull.ts)
+const WK=1150,WC=120,TK=.6,KS=.05,LEAK=.3,GRACE=.13,SPRING=6.5,ARM=.3;
+let pull=0,lastPush=-1e9,restSince=-1,finger=0,fy=0,raf=0,last=0,shown=-1;
+const now=()=>performance.now()/1000,atEnd=()=>scrollY>=document.documentElement.scrollHeight-innerHeight-2;
+const step=t=>{raf=0;const dt=Math.min(.1,Math.max(0,(t-last)/1000));last=t;const T=now();
+if(atEnd()){if(restSince<0)restSince=T}else{restSince=-1;pull=Math.max(0,pull-dt*SPRING*2*pull)}
+if(pull>0){pull=Math.max(0,pull-LEAK*dt);if(!finger&&T-lastPush>GRACE)pull*=Math.exp(-SPRING*dt);if(pull<.002)pull=0}
+if(Math.abs(pull-shown)>1e-4){shown=pull;set(pull)}
+if(pull>.985&&!fired){pull=0;restSince=-1;wrap()}
+if(pull>0||(restSince>=0&&(finger||T-restSince<ARM)))raf=requestAnimationFrame(step)};
+const go=()=>{if(!raf&&!RMq.matches){last=performance.now();raf=requestAnimationFrame(step)}};
+const push=v=>{go();if(RMq.matches||!atEnd()||restSince<0||now()-restSince<ARM)return;pull=Math.min(1,pull+v);lastPush=now()};
+addEventListener('scroll',go,{passive:true});
+addEventListener('wheel',e=>{if(e.ctrlKey)return;let dy=e.deltaY;if(Math.abs(e.deltaX)>Math.abs(dy))return;if(e.deltaMode===1)dy*=40;else if(e.deltaMode===2)dy*=800;
+if(dy>0)push(Math.min(dy,WC)/WK);else if(dy<0){pull=Math.max(0,pull+dy/WK*3);go()}},{passive:true});
+addEventListener('touchstart',e=>{finger=e.touches.length===1?1:0;fy=e.touches[0]?e.touches[0].clientY:0;go()},{passive:true});
+addEventListener('touchmove',e=>{if(!finger||e.touches.length!==1)return;const y=e.touches[0].clientY,dy=y-fy;fy=y;const k=TK*innerHeight;if(dy<0)push(-dy/k);else if(dy>0){pull=Math.max(0,pull-dy/k*2);go()}},{passive:true});
+const up=()=>{finger=0;go()};addEventListener('touchend',up,{passive:true});addEventListener('touchcancel',up,{passive:true});
+addEventListener('keydown',e=>{if(e.altKey||e.ctrlKey||e.metaKey)return;const t=e.target;if(t&&(t.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)))return;if(e.key==='ArrowDown'||e.key==='PageDown'||(e.key===' '&&!e.shiftKey))push(KS)});
+window.__csPull={get value(){return pull}};go()}
 })();
 (()=>{/* GPU footer bar (Shifat 06:33Z "Gpu version"): the portfolio's lime glow bar drawn in WebGL (footerWorld.ts footBar,
 layer for layer) and bent by the portfolio's cursor trail (ScreenPaint.ts + ScreenPaintDistortion, same numbers), on one small
@@ -240,7 +268,7 @@ addEventListener('pointermove',e=>mv(e.clientX,e.clientY),{passive:true});
 addEventListener('touchstart',e=>{const t=e.touches[0];if(t){lmx=t.clientX;lmy=t.clientY;mv(t.clientX,t.clientY)}},{passive:true});
 addEventListener('touchmove',e=>{const t=e.touches[0];if(t)mv(t.clientX,t.clientY)},{passive:true});
 addEventListener('scroll',()=>{sDelta+=scrollY-lastSY;lastSY=scrollY;kick()},{passive:true});
-addEventListener('resize',()=>{dirty=1;kick()});if(window.ResizeObserver)new ResizeObserver(()=>{dirty=1;kick()}).observe(ft);
+addEventListener('resize',()=>{dirty=1;kick()});addEventListener('cs-barf',()=>kick());if(window.ResizeObserver)new ResizeObserver(()=>{dirty=1;kick()}).observe(ft);
 document.fonts&&document.fonts.ready&&document.fonts.ready.then(()=>{dirty=1;kick()})}
 new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting)){init()}},{rootMargin:'600px 0px'}).observe(ft);
 })();
