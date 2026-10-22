@@ -16,5 +16,15 @@ b.addEventListener('pointerdown',e=>{if(e.pointerType!=='mouse')on(e);b.classLis
 const up=e=>{b.classList.remove('is-press');if(e.pointerType&&e.pointerType!=='mouse')setTimeout(()=>off(e),220)};
 b.addEventListener('pointerup',up);b.addEventListener('pointercancel',up);
 b.addEventListener('focus',()=>{if(b.matches(':focus-visible'))on()});b.addEventListener('blur',()=>off())});
+const ob=document.querySelector('.overscroll__bar');if(ob){ob.removeAttribute('aria-hidden');ob.setAttribute('role','button');ob.setAttribute('tabindex','0');ob.setAttribute('aria-label','Back to the surface');ob.style.cursor='pointer';
+const goTop=()=>{scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})};
+ob.addEventListener('click',goTop);ob.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();goTop()}});
+let pull=0,ty=null,lock=0;const atEnd=()=>{const d=document.documentElement;return scrollY>=d.scrollHeight-innerHeight-2};
+const add=v=>{if(lock)return;if(!atEnd()){pull=0;return}pull=Math.max(0,pull+v);if(pull>260){pull=0;lock=1;goTop();setTimeout(()=>lock=0,1200)}};
+addEventListener('wheel',e=>{if(e.deltaY>0)add(e.deltaY);else pull=0},{passive:true});
+addEventListener('touchstart',e=>{ty=e.touches[0].clientY},{passive:true});
+addEventListener('touchmove',e=>{if(ty==null)return;const y=e.touches[0].clientY;add((ty-y)*1.4);ty=y},{passive:true});
+addEventListener('touchend',()=>{ty=null;if(!lock)pull=0},{passive:true});}
+document.querySelectorAll('a[href="#top"]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});history.replaceState(null,'',location.pathname)}));
 const f=document.querySelector('.overscroll__fill');if(f){let p=0;const u=()=>{p=0;const d=document.documentElement,m=d.scrollHeight-innerHeight;f.style.setProperty('--f',m>0?Math.min(1,scrollY/m).toFixed(3):1)};addEventListener('scroll',()=>{if(!p)p=requestAnimationFrame(u)},{passive:true});u()}
 })();
