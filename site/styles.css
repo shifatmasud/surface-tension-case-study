@@ -189,3 +189,6 @@ html.foot-glbar .overscroll__bar::before,html.foot-glbar .overscroll__bar::after
 @media (max-width:812px){.vp{border-radius:12px}.heromedia .vp{border-radius:16px}.vp__bar{left:8px;right:8px;bottom:8px;height:40px;padding:0 4px}.vp__big{width:60px;height:60px;margin:-30px 0 0 -30px}}
 .pair .vp__time{display:none}
 @media (prefers-reduced-motion:reduce){.vp__big,.vp__bar,.vp__track,.vp__knob{transition:none}}
+
+/* R6.81: the 0.8 s hold at the top after a rubber-band loop (touch screens: stops momentum) */
+html.cs-hold{overflow:hidden}
