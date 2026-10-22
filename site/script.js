@@ -272,4 +272,3 @@ addEventListener('resize',()=>{dirty=1;kick()});addEventListener('cs-barf',()=>k
 document.fonts&&document.fonts.ready&&document.fonts.ready.then(()=>{dirty=1;kick()})}
 new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting)){init()}},{rootMargin:'600px 0px'}).observe(ft);
 })();
-;(function(){var a=document.querySelector('.site-footer__top-link');if(a)a.addEventListener('click',function(e){e.preventDefault();var r=matchMedia('(prefers-reduced-motion:reduce)').matches;window.scrollTo({top:0,behavior:r?'auto':'smooth'});var t=document.getElementById('top');if(t){t.setAttribute('tabindex','-1');t.focus({preventScroll:true})}})})();
