@@ -94,7 +94,8 @@ const s=fmt(t);if(cur.textContent!==s){cur.textContent=s;sc.setAttribute('aria-v
 if(v.buffered.length&&d){buf.style.transform=`scaleX(${Math.min(1,v.buffered.end(v.buffered.length-1)/d).toFixed(3)})`}}};
 const state=()=>{const pl=!v.paused&&!v.ended;vp.dataset.state=pl?'playing':'paused';setIc(pp,pl?'pause':'play');pp.setAttribute('aria-label',pl?'Pause':'Play');
 if(pl&&vis)live.add(P);else live.delete(P);if(live.size&&!raf)raf=requestAnimationFrame(loop);P.paint()};
-const load=()=>{if(v.preload==='none'){v.preload='auto';v.load()}};
+const load=()=>{if(v.preload==='none'){v.preload='auto';v.load()}};/* a host that answers without byte ranges leaves the clip unseekable (and iOS Safari will not play it at all): then the clip is fetched once as a blob, which is seekable everywhere, and swapped in where it was */
+let blob=0;const canSeek=()=>{const d=v.duration;return v.seekable.length>0&&d>0&&v.seekable.end(v.seekable.length-1)>=d-.5};const toBlob=()=>{if(blob)return;blob=1;const s=v.currentSrc||(v.querySelector('source')||{}).src;if(!s)return;fetch(s).then(r=>r.ok?r.blob():Promise.reject()).then(bl=>{const t=v.currentTime,pl=!v.paused||(vis&&!user&&!RM);v.addEventListener('loadedmetadata',()=>{try{v.currentTime=Math.min(t,(v.duration||t)-.05)}catch(e){}if(pl)play()},{once:true});v.src=URL.createObjectURL(bl);v.load()}).catch(()=>{blob=0})};v.addEventListener('loadedmetadata',()=>{if(!blob&&!canSeek())toBlob()});const so=v.querySelector('source');if(so)so.addEventListener('error',toBlob);v.addEventListener('error',toBlob);
 const play=()=>{load();const r=v.play();if(r&&r.catch)r.catch(()=>{state()})};
 const toggle=()=>{if(v.paused||v.ended){user=0;play()}else{user=1;v.pause()}showUi()};
 const showUi=(ms)=>{vp.classList.add('is-ui');clearTimeout(hideT);if(!v.paused)hideT=setTimeout(()=>{if(!drag&&!vp.matches(':focus-within'))vp.classList.remove('is-ui')},ms||2200)};
@@ -106,7 +107,7 @@ vp.addEventListener('pointermove',e=>{if(e.pointerType==='mouse')showUi()});vp.a
 vp.addEventListener('focusin',()=>showUi());
 // scrub: drag anywhere on the strip, arrows / Home / End on the keyboard
 const seek=x=>{const r=sc.querySelector('.vp__track').getBoundingClientRect(),d=v.duration;if(!d)return;v.currentTime=Math.min(d-.05,Math.max(0,(x-r.left)/r.width*d));lastP=-1;P.paint()};
-sc.addEventListener('pointerdown',e=>{if(e.button!==0)return;load();drag=1;sc.classList.add('is-drag');sc.setPointerCapture(e.pointerId);seek(e.clientX);showUi()});
+sc.addEventListener('pointerdown',e=>{if(e.button!==0)return;load();if(!canSeek())toBlob();drag=1;sc.classList.add('is-drag');sc.setPointerCapture(e.pointerId);seek(e.clientX);showUi()});
 sc.addEventListener('pointermove',e=>{if(drag)seek(e.clientX)});
 const end=()=>{if(!drag)return;drag=0;sc.classList.remove('is-drag');showUi()};sc.addEventListener('pointerup',end);sc.addEventListener('pointercancel',end);
 sc.addEventListener('keydown',e=>{const d=v.duration;if(!d)return;let t=v.currentTime;if(e.key==='ArrowRight'||e.key==='ArrowUp')t+=d*.05;else if(e.key==='ArrowLeft'||e.key==='ArrowDown')t-=d*.05;else if(e.key==='Home')t=0;else if(e.key==='End')t=d-.05;else if(e.key===' '||e.key==='k'){e.preventDefault();toggle();return}else return;
