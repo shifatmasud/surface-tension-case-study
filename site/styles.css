@@ -129,6 +129,8 @@ dl.tools dt{color:var(--c-silver-3);font-size:var(--fs-small);line-height:1.8}dl
 /* Shifat 06:32Z "Use same bar from portfolio": portfolio footer bar — footer holds while the bar fills over a runway, then wraps to the top; electric lime glow on an ink track */
 .site-footer{position:sticky;top:calc(100vh - var(--fh,0px));z-index:2;background:var(--bg)}
 .footer-spacer{height:70vh}
+/* R6.80 rubber band: the footer is the end of the page; the loop is a pull past it (script.js). Reduced motion keeps the runway */
+@media (prefers-reduced-motion:no-preference){.footer-spacer{height:0}}
 .overscroll__bar{position:relative}
 .overscroll__track{position:relative;height:12px;border-radius:999px;background:var(--c-ink);overflow:hidden;box-shadow:none;z-index:1}
 .overscroll__fill{position:absolute;inset:0;border-radius:999px;background:#a3ff12;transform-origin:0 50%;transform:translateX(calc((var(--f,0) - 1) * 100%));transition:transform .32s var(--ease);box-shadow:0 0 6px #a3ff12,0 0 14px rgba(163,255,18,.8)}
