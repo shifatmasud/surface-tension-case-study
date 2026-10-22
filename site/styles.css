@@ -136,3 +136,54 @@ dl.tools dt{color:var(--c-silver-3);font-size:var(--fs-small);line-height:1.8}dl
 .overscroll__bar::after{content:"";position:absolute;left:0;bottom:0;height:12px;width:100%;border-radius:999px;background:#a3ff12;transform-origin:0 50%;transform:scaleX(var(--f,0));filter:blur(9px);opacity:calc(.55 + .45*var(--f,0));transition:transform .32s var(--ease);pointer-events:none}
 .overscroll__bar::before{content:"";position:absolute;left:-6px;bottom:-10px;height:32px;width:calc(100% + 12px);border-radius:999px;background:#b8ff3c;transform-origin:6px 50%;transform:scaleX(var(--f,0));filter:blur(24px);opacity:calc(.45 + .4*var(--f,0));transition:transform .32s var(--ease);pointer-events:none}
 @media (prefers-reduced-motion:reduce){.overscroll__fill,.overscroll__bar::after,.overscroll__bar::before{transition:none}}
+/* GPU bar (Shifat 06:33Z "Gpu version"): while the WebGL canvas draws the bar, the DOM track/fill/glow go transparent (the portfolio's html.foot-glbar); the label stays */
+.overscroll__gl{position:absolute;z-index:-1;pointer-events:none}
+html.foot-glbar .overscroll__track{background:transparent}
+html.foot-glbar .overscroll__fill{opacity:0;box-shadow:none}
+html.foot-glbar .overscroll__bar::before,html.foot-glbar .overscroll__bar::after{display:none}
+/* BUTTON v2 (the portfolio's ink button, script.js): the engine drives roll, arrows, squash and magnet frame by frame */
+.inkb .ir-a,.inkb .ir-b,.inkb .ia-a,.inkb .ia-b{transition:none}
+.big-btn.inkb{transition:none}
+.pill .pill__l{position:relative;display:block;overflow:hidden;height:1.2em;line-height:1.2em}
+.pill__l .ir-a,.pill__l .ir-b{display:block;white-space:nowrap}
+.pill__l .ir-b{position:absolute;left:0;top:0;transform:translate3d(0,100%,0)}
+.pill .pill__ic{position:relative;display:grid;place-items:center;width:16px;height:16px;overflow:hidden}
+.pill__ic .ia-a,.pill__ic .ia-b{grid-area:1/1;display:grid;place-items:center}
+.pill__ic .ia-b{transform:translate3d(-130%,130%,0)}
+@media (hover:hover){.pill.inkb:hover .pill__ic{transform:none}}
+.pill{isolation:isolate;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
+.pill>.pill__l,.pill>.pill__ic{position:relative;z-index:1}
+.pill .ink{position:absolute;inset:0;z-index:2;pointer-events:none;visibility:hidden;clip-path:circle(0px at 0px 0px);display:flex;align-items:center;gap:inherit;padding:inherit;background:var(--c-ink);color:#fff;border-radius:inherit}
+
+/* the video player (Shifat 06:36Z): frosted pills, ink on silver, Phosphor icons, the portfolio's ink buttons */
+.vp{position:relative;border-radius:20px;overflow:hidden;isolation:isolate;background:#eef0f3;-webkit-tap-highlight-color:transparent}
+.heromedia .vp{border-radius:24px}
+.vp video{border-radius:0;cursor:pointer}
+.vp__ui{position:absolute;inset:0;pointer-events:none;color:var(--c-ink)}
+.vp__big,.vp__btn{position:relative;border:0;padding:0;margin:0;color:inherit;font:inherit;cursor:pointer;overflow:hidden;display:grid;place-items:center;-webkit-user-select:none;user-select:none;touch-action:manipulation;isolation:isolate}
+.vp__big{pointer-events:auto;position:absolute;left:50%;top:50%;width:72px;height:72px;margin:-36px 0 0 -36px;border-radius:50%;background:rgba(250,250,250,.62);backdrop-filter:blur(14px) saturate(1.1);-webkit-backdrop-filter:blur(14px);box-shadow:inset 0 0 0 1px rgba(18,19,21,.08);opacity:0;visibility:hidden;transform:scale(.86);transition:opacity var(--dur-fade) var(--ease),transform var(--dur-ui) var(--ease),visibility 0s linear var(--dur-fade)}
+.vp[data-state=paused] .vp__big{opacity:1;visibility:visible;transform:none;transition-delay:0s}
+.vp__big .vp__ic svg{margin-left:3px}
+.vp__ic{position:relative;z-index:1;display:grid;place-items:center}
+.vp__big .ink,.vp__btn .ink{position:absolute;inset:0;z-index:2;pointer-events:none;visibility:hidden;clip-path:circle(0px at 0px 0px);display:grid;place-items:center;background:var(--c-ink);color:#fff;border-radius:inherit}
+.vp__bar{pointer-events:auto;position:absolute;left:12px;right:12px;bottom:12px;height:44px;display:flex;align-items:center;gap:2px;padding:0 6px;border-radius:999px;background:rgba(250,250,250,.62);backdrop-filter:blur(14px) saturate(1.1);-webkit-backdrop-filter:blur(14px);box-shadow:inset 0 0 0 1px rgba(18,19,21,.08);opacity:0;transform:translate3d(0,10px,0);transition:opacity var(--dur-fade) var(--ease),transform var(--dur-ui) var(--ease)}
+.vp.is-ui .vp__bar,.vp:focus-within .vp__bar{opacity:1;transform:none}
+.vp:not(.is-ui):not(:focus-within) .vp__bar{pointer-events:none}
+.vp__btn{flex:none;width:32px;height:32px;border-radius:50%;background:transparent}
+.vp__time{flex:none;padding:0 4px 0 6px;font-size:var(--fs-small);letter-spacing:-0.01em;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap}
+.vp__time i{font-style:normal;color:var(--c-silver-3);margin:0 .35em}
+.vp__scrub{flex:1;align-self:stretch;display:flex;align-items:center;padding:0 10px;cursor:pointer;touch-action:none;border-radius:999px;outline-offset:-4px}
+.vp__track{position:relative;flex:1;height:3px;border-radius:999px;background:rgba(18,19,21,.14);transition:height var(--dur-fade) var(--ease)}
+.vp__buf,.vp__fill{position:absolute;inset:0;border-radius:inherit;transform-origin:0 50%;transform:scaleX(0)}
+.vp__buf{background:rgba(18,19,21,.12)}
+.vp__fill{background:var(--c-ink)}
+.vp__knob{position:absolute;top:50%;left:0;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:var(--c-ink);transform:scale(0);transition:transform var(--dur-fade) var(--ease)}
+@media (hover:hover){.vp__scrub:hover .vp__track{height:5px}.vp__scrub:hover .vp__knob{transform:none}}
+.vp__scrub.is-drag .vp__track{height:5px}.vp__scrub.is-drag .vp__knob{transform:none}
+.vp:fullscreen{border-radius:0;background:#0a0a0b;display:grid;place-items:center}
+.vp:fullscreen video{width:100%;height:100%;object-fit:contain}
+.vp:-webkit-full-screen{border-radius:0;background:#0a0a0b;display:grid;place-items:center}
+.vp:-webkit-full-screen video{width:100%;height:100%;object-fit:contain}
+@media (max-width:812px){.vp{border-radius:12px}.heromedia .vp{border-radius:16px}.vp__bar{left:8px;right:8px;bottom:8px;height:40px;padding:0 4px}.vp__big{width:60px;height:60px;margin:-30px 0 0 -30px}}
+.pair .vp__time{display:none}
+@media (prefers-reduced-motion:reduce){.vp__big,.vp__bar,.vp__track,.vp__knob{transition:none}}
