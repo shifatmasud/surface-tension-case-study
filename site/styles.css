@@ -265,3 +265,6 @@ article h2{font-size:clamp(40px,5.6vw,76px);max-width:none}
 .il2-t{position:absolute;font-size:12px;line-height:1.3;color:#121315;letter-spacing:.01em;white-space:nowrap;padding:0 4px;background:#fff}
 @media (max-width:760px){.ill2{width:88%}.il2-t{font-size:11px}}
 
+
+/* Shifat 8:28: a lone last key-moment card spans both columns on desktop */
+@media (min-width:813px){.moments li:last-child:nth-child(odd){grid-column:1 / -1}}
