@@ -151,6 +151,28 @@ Between my own checks on the phone, Zero used a stand-in: a phone-sized browser 
 
 > **Steal this:** Turn "feels smooth" into numbers you can trace: no task over 50 ms, no frame over 33 ms, on a real low-end phone you actually own. Then measure before you fix: our biggest freezes were GPU work, not code. Use a rig between checks, but let the real device have the last word.
 
+## Sharp where the eye goes
+
+The brief: “AAA, but fast on phone”. The judge: my Galaxy M02s. The bar: zero freezes, zero frame drops.
+
+First try: brute force. Render the whole frame sharper, with more pixels, anti-aliasing and a sharpen pass. Everything got crisper, and heavier. My phone was paying for pixels nobody looks at, so I dropped the whole package.
+
+Then I thought about how an eye, or a camera, sees: never everything in focus. So we split the frame in two.
+
+- **The world renders soft.** About half resolution on phones (0.5–0.75×). Dreamy, like depth of field.
+- **Heroes render sharp.** The stone, the crewmate, my project images and videos get their own pass: 1.5× on phones.
+- **The governor only touches the world.** When the phone needs room, the background softens. Heroes never do.
+
+![Before: the crewmate at one resolution for everything](https://surface-tension-case-study.sites.tab.bot/media/split-crew-before.jpg)
+![After: a sharp crewmate on a soft sky](https://surface-tension-case-study.sites.tab.bot/media/split-crew-after.jpg)
+*The crewmate, zoomed 3×. Before: one resolution for everything. After: a sharp hero on a soft sky.*
+
+Making it real: the sharp stone first ignored depth and looked pasted on. Wired to the live scene, parts and particles now pass in front of it, so the stone sits inside the atom. Dissolves are GPU particles, one draw each, capped per phone. And the dive into the tablet’s sky is one camera move through the glass. No cut.
+
+The trade-off: soft edges like the tablet’s bezel can look jagged on a budget phone, and heroes lose some glow. Worth it. My idea, built with Zero.
+
+> **Steal this:** Don’t pay for sharpness everywhere. Find where the eye lands, spend your pixels there, and let the rest go soft. Blur is a design choice, and it’s cheap.
+
 ## Key moments
 
 **Release 3 — The card that blacked out the screen.** Closing a project card left the whole canvas black. The fix was small (a stalled video swapped for its poster, restored on close). The real win was a new end-to-end test: open a card, press Esc, scroll to the CTA, assert the screen isn’t black. Every bug became a test.
