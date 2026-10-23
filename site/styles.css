@@ -208,10 +208,60 @@ html.cs-hold{overflow:hidden}
 
 /* gift sticker (Shifat Oct 23 6:40 AM: the same sticker as the live site) */
 .site-footer{isolation:isolate}
-.site-footer .gift-sticker{position:absolute;right:var(--pad-x);bottom:calc(var(--pad-y) + 36px);width:92px;height:92px;padding:0;margin:0;border:0;border-radius:26px;background:transparent;cursor:pointer;visibility:hidden;-webkit-tap-highlight-color:transparent;z-index:3;transition:transform .5s cubic-bezier(.22,1,.36,1)}
+.site-footer .gift-sticker{position:absolute;right:var(--pad-x);bottom:calc(var(--pad-y) + 36px);width:92px;height:92px;padding:0;margin:0;border:0;border-radius:26px;background:transparent;cursor:pointer;visibility:hidden;-webkit-tap-highlight-color:transparent;z-index:3;touch-action:pinch-zoom;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none;transform-origin:50% 50%}
 .site-footer .gift-sticker.is-on{visibility:visible}
 .gift-sticker__cv{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none}
-.site-footer .gift-sticker.is-on:hover{transform:translateY(-3px) rotate(-2deg) scale(1.04)}
+.site-footer .gift-sticker:active{cursor:grabbing}
+.site-footer .gift-sticker.is-gone{visibility:hidden;pointer-events:none}/* R6.91: peel + drag like the portfolio (script.js drives the transform; peeled off, it gathers again) */
 .site-footer .gift-sticker:focus{outline:none}
 .site-footer .gift-sticker:focus-visible{outline:2px solid #ff2e93;outline-offset:6px}
 @media (max-width:640px){.site-footer .gift-sticker{width:76px;height:76px;border-radius:22px;right:var(--pad-x);bottom:calc(var(--pad-y) + 150px)}}
+@media (max-width:760px){.site-footer:has(.gift-sticker){overflow-x:clip}}/* R6.91: the sticker's ember canvas reaches past the screen's right edge; on phones it widened the page (423 px layout at 390) */
+
+/* The mind: a psychology insight per chapter (Shifat Oct 23 6:41 AM) */
+.mind{max-width:var(--txt);margin:var(--s4) 0 0;padding:var(--s3);background:#f4f4f2;border-radius:20px;border:1px solid #e6e6e3}
+.mind .tl{margin-bottom:var(--s1);color:#121315;font-weight:600}
+.mind p:last-child{margin:0}
+.mind+.take{margin-top:var(--s2)}
+
+/* Illustrations (geometry set, Oct 23) */
+.ill{margin:28px 0 36px;padding:0}
+.il-wrap{position:relative;border-radius:14px;overflow:hidden;background:#fff}
+.il-wrap img{display:block;width:100%;height:auto}
+.il-l{position:absolute;transform:translateY(-50%);font:500 13px/1.25 inherit;font-family:inherit;color:#121315;background:rgba(255,255,255,.86);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:6px 10px 6px 8px;border-radius:999px;border:1px solid rgba(18,19,21,.08);width:max-content;max-width:44%;border-radius:12px;letter-spacing:-.005em}
+.il-center{max-width:88%}
+.il-l b{display:inline-grid;place-items:center;width:18px;height:18px;margin-right:7px;border-radius:50%;background:#1F4BFF;color:#fff;font-size:10.5px;font-weight:600;vertical-align:1px}
+.il-right{transform:translate(-100%,-50%)}
+.il-center{transform:translate(-50%,-50%)}
+.il-leg{display:none;list-style:none;counter-reset:il;margin:14px 0 0;padding:0}
+.il-leg li{counter-increment:il;position:relative;padding:0 0 8px 28px;font-size:14px;line-height:1.4;color:#121315}
+.il-leg li::before{content:counter(il);position:absolute;left:0;top:1px;width:18px;height:18px;border-radius:50%;background:#1F4BFF;color:#fff;font-size:10.5px;font-weight:600;display:grid;place-items:center}
+@media (max-width:760px){.il-l{padding:0;width:20px;height:20px;border-radius:50%;font-size:0;max-width:none;background:none;border:0;backdrop-filter:none;-webkit-backdrop-filter:none;transform:translate(-50%,-50%)!important}.il-l b{margin:0}.il-leg{display:block}}
+
+/* Layout v2 (Shifat Oct 23 7:58 AM: "left & right padding while text stays in center", ref practical-ux.super.site) */
+:root{--read:720px}
+article{max-width:var(--read)!important;margin-inline:auto!important}
+article p,article ul,article ol.steal,blockquote,.take,dl.tools,.mind,figcaption,.decide{max-width:none}
+article h2{font-size:clamp(40px,5.6vw,76px);max-width:none}
+.intro .lead,.intro blockquote,.intro p{max-width:var(--read);margin-inline:auto}
+.intro section,#intro{max-width:var(--read);margin-inline:auto}
+.split,.split-m{max-width:100%}
+.ill2,.ill{margin-inline:auto}
+
+.intro{max-width:var(--read)!important;margin-inline:auto!important}
+.intro h1{font-size:clamp(56px,10vw,128px)!important;margin-left:0!important}
+.intro .kicker,.intro .sub{margin-left:0!important;max-width:none}
+.intro .heromedia{width:min(1120px,calc(100vw - 2*var(--pad-x)));margin-left:50%;transform:translateX(-50%)}
+.intro .facts{max-width:none}
+
+
+/* Illustrations v2 (square, hairline labels, Oct 23 7:50) */
+.ill2{margin:28px auto 36px;width:70%;max-width:560px}
+.il2-wrap{position:relative}
+.il2-wrap img{display:block;width:100%;height:auto}
+.il2-wrap svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.il2-wrap line{stroke:#121315;stroke-width:1;vector-effect:non-scaling-stroke;opacity:.55}
+.il2-wrap circle{fill:#121315;opacity:.8}
+.il2-t{position:absolute;font-size:12px;line-height:1.3;color:#121315;letter-spacing:.01em;white-space:nowrap;padding:0 4px;background:#fff}
+@media (max-width:760px){.ill2{width:88%}.il2-t{font-size:11px}}
+

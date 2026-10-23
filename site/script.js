@@ -317,7 +317,7 @@ g=cv.getContext('2d');img=drawSticker(W,S,k,true);const rg=drawSticker(W,S,1,fal
 let seed=11;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
 for(let y=0;y<W;y+=step)for(let x=0;x<W;x+=step){const i=(y*W+x)*4;if(rg[i+3]<160)continue;const a=rnd()*Math.PI*2,r=S*(0.55+rnd()*0.75),front=1-y/W;
 pts.push({tx:x,ty:y,sx:W/2+Math.cos(a)*r,sy:W/2+Math.sin(a)*r*0.8+S*0.25,c:(rg[i]<<16)|(rg[i+1]<<8)|rg[i+2],d:0.5*(front*0.7+rnd()*0.3),sw:(rnd()-0.5)*2})}
-buf=g.createImageData(cv.width,cv.height);px=new Uint32Array(buf.data.buffer)};
+buf=g.createImageData(cv.width,cv.height);px=new Uint32Array(buf.data.buffer);face=drawSticker(W,S,k,false)};
 const frame=now=>{raf=0;const t=fixedT>=0?fixedT:(now-t0)/1000;g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,cv.width,cv.height);
 const land=Math.min(1,Math.max(0,(t-1.05)/0.4));
 if(land<1){px.fill(0);const fade=1-land,cw=cv.width,ch=cv.height,full=Math.max(1,Math.round(step*k));
@@ -329,12 +329,97 @@ for(let yy=0;yy<sz;yy++){const row=Y+yy;if(row<0||row>=ch)continue;for(let xx=0;
 g.putImageData(buf,0,0)}
 if(land>0){g.globalAlpha=land;g.drawImage(img,0,0);g.globalAlpha=1}
 if(t<DUR&&shown&&fixedT<0)raf=requestAnimationFrame(frame)};
+/* R6.91 (Shifat Oct 23 6:51 AM "make gift sticker behave same like others. Peel, & draggable"): the portfolio's peel + drag,
+the same code as the live site's giftSticker.ts (itself the CTA wall's stickerInteract.ts): the same springs, thresholds, peel
+fold (rolling back to show the white backing paper), lift with the shadow dropping away, swing, long-press pick-up on touch,
+fly-off past the peel threshold (it gathers again from its embers). A tap or click that does not drag still opens the gift;
+Enter / Space too (a real button). */
+class Spring{constructor(x0=0,f=2,z=0.6,r=1){this.xp=x0;this.value=x0;this.velocity=0;this.tune(f,z,r)}
+tune(f,z,r){const w=2*Math.PI*f;this.k1=z/(Math.PI*f);this.k2=1/(w*w);this.k3=(r*z)/w;return this}
+reset(v){this.value=this.xp=v;this.velocity=0}
+update(x,dt){if(dt<=0)return this.value;const xd=(x-this.xp)/dt;this.xp=x;const k2=Math.max(this.k2,(dt*dt)/2+(dt*this.k1)/2,dt*this.k1);
+this.value+=dt*this.velocity;this.velocity+=(dt*(x+this.k3*xd-this.value-this.k1*this.velocity))/k2;return this.value}}
+const smooth=(a,b,x)=>{const t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-2*t)};
+const LONG_PRESS=400,SLOP=9,PEEL_OFF=0.35,FLY_S=1.35,REACH=0.53;
+const st={ox:new Spring(0,2.4,0.62,0),oy:new Spring(0,2.4,0.62,0),tx:0,ty:0,lift:new Spring(0,2.6,0.42,0),liftT:0,peel:new Spring(0,2.8,0.62,0),peelT:0,ang:Math.PI/4,rot:new Spring(0,2.0,0.5,0),fly:0};
+let face=null,grab=null,pending=null,suppressClick=false,iraf=0,last=0,reborn=0;
+const landed=()=>shown&&!raf&&fixedT<0&&!!cv;
+const local=(x_,y_)=>{const r=btn.getBoundingClientRect(),x=x_-(r.left+r.width/2),y=y_-(r.top+r.height/2),a=-(TILT+st.rot.value),ca=Math.cos(a),sa=Math.sin(a),sc=1+0.07*Math.max(0,st.lift.value);
+return{x:(x*ca-y*sa)/sc,y:(x*sa+y*ca)/sc}};
+const peelAngle=q=>(reduced?null:Math.abs(q.x)>0.24*S&&Math.abs(q.y)>0.24*S?Math.atan2(Math.sign(q.y),Math.sign(q.x)):null);
+const shapeP=(c,r)=>{c.beginPath();c.roundRect?c.roundRect(-r,-r,r*2,r*2,r*0.36):c.rect(-r,-r,r*2,r*2)};
+const draw=()=>{const L=reduced?0:Math.max(0,st.lift.value),pe=reduced?0:Math.max(0,st.peel.value);
+const start=(0.72-REACH)/1.55,pw=pe>0.001?start+Math.min(1,pe)*(1-start):0;
+const t=(0.72-pw*1.55)*S,rr=(0.055+0.05*pw)*S,cdx=Math.cos(st.ang),cdy=Math.sin(st.ang),R=S/2;
+const base=()=>{g.setTransform(k,0,0,k,0,0);g.translate(W/2,W/2);g.rotate(TILT)};
+const half=(beyond,at)=>{const nx=cdx,ny=cdy,px_=-ny,py_=nx,B=S*3,s=beyond?1:-1;g.beginPath();g.moveTo(nx*at+px_*B,ny*at+py_*B);g.lineTo(nx*at-px_*B,ny*at-py_*B);
+g.lineTo(nx*(at+s*B)-px_*B,ny*(at+s*B)-py_*B);g.lineTo(nx*(at+s*B)+px_*B,ny*(at+s*B)+py_*B);g.closePath()};
+g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,cv.width,cv.height);
+base();g.save();if(pw>0){half(false,t);g.clip()}
+g.shadowColor=`rgba(10, 12, 14, ${(0.28*(1-0.45*L)).toFixed(3)})`;g.shadowBlur=S*(0.14+0.3*L);g.shadowOffsetY=S*(0.05+0.16*L);
+g.fillStyle='#f4f4f2';shapeP(g,R);g.fill();g.restore();
+base();g.save();if(pw>0){half(false,t);g.clip()}g.setTransform(1,0,0,1,0,0);g.drawImage(face,0,0);g.restore();
+if(pw>0){const tr=t+rr*1.2;base();const m11=1-2*cdx*cdx,m12=-2*cdx*cdy,m22=1-2*cdy*cdy;g.transform(m11,m12,m12,m22,2*tr*cdx,2*tr*cdy);
+g.save();half(true,t);g.clip();const gr=g.createLinearGradient(cdx*t,cdy*t,cdx*(t+S),cdy*(t+S));gr.addColorStop(0,'#e6e6e6');gr.addColorStop(0.35,'#d2d2d2');gr.addColorStop(1,'#c4c4c4');
+g.shadowColor='rgba(8, 10, 12, .26)';g.shadowBlur=S*0.07;g.fillStyle=gr;shapeP(g,R);g.fill();g.restore();
+base();g.save();shapeP(g,R);g.clip();const eg=g.createLinearGradient(cdx*(t-rr),cdy*(t-rr),cdx*(t+rr*1.6),cdy*(t+rr*1.6));
+eg.addColorStop(0,'rgba(255,255,255,0)');eg.addColorStop(0.55,'rgba(255,255,255,.55)');eg.addColorStop(1,'rgba(255,255,255,0)');half(true,t-rr);g.fillStyle=eg;g.fill();g.restore()}
+g.setTransform(1,0,0,1,0,0)};
+const place=()=>{const L=reduced?0:st.lift.value,fe=st.fly*st.fly*(3-2*st.fly);const fx=fe*fe*S*0.7,fy=-fe*fe*S*2.6,fs=st.fly>0?1-smooth(0.45,1,st.fly):1,rot=st.rot.value+fe*fe*1.9;
+const css=`translate3d(${(st.ox.value+fx).toFixed(1)}px,${(st.oy.value+fy).toFixed(1)}px,0) rotate(${rot.toFixed(3)}rad) scale(${((1+0.07*L)*fs).toFixed(3)})`;if(btn.style.transform!==css)btn.style.transform=css};
+const moving=()=>!!grab||!!pending||st.fly>0||[[st.ox,st.tx],[st.oy,st.ty],[st.lift,st.liftT],[st.peel,st.peelT],[st.rot,0]].some(([s_,tg])=>Math.abs(s_.velocity)>1e-4||Math.abs(s_.value-tg)>1e-4);
+const tick=now=>{iraf=0;const dt=Math.min(0.05,last?(now-last)/1000:0.016);last=now;
+st.ox.update(st.tx,dt);st.oy.update(st.ty,dt);st.lift.update(st.liftT,dt);st.peel.update(st.peelT,dt);
+st.rot.update(grab&&grab.mode==='drag'&&!reduced?Math.max(-0.3,Math.min(0.3,st.ox.velocity/S*0.05*0.5)):0,dt);
+if(st.fly>0){st.fly=Math.min(1,st.fly+dt/FLY_S);if(st.fly>=1){btn.classList.add('is-gone');reborn=setTimeout(regather,1100)}}
+if(landed())draw();place();if(moving()&&st.fly<1)iraf=requestAnimationFrame(tick);else last=0};
+const kick=()=>{if(!iraf){last=0;iraf=requestAnimationFrame(tick)}};
+const cancelPending=()=>{if(pending){clearTimeout(pending.timer);pending=null}};
+const resetAll=()=>{st.ox.reset(0);st.oy.reset(0);st.tx=st.ty=0;st.lift.reset(0);st.liftT=0;st.peel.reset(0);st.peelT=0;st.rot.reset(0);st.fly=0;
+grab=null;cancelPending();btn.style.transform='';btn.classList.remove('is-gone')};
+function regather(){reborn=0;if(!shown)return;resetAll();shown=false;set(true)}
+const begin=(id,x,y,touch)=>{const q=local(x,y),ang=peelAngle(q);
+grab={id,mode:ang===null?'drag':'peel',gx:x-st.ox.value,gy:y-st.oy.value,sx:x,sy:y,x0:x,y0:y,moved:false,touch};
+if(ang!==null){st.ang=ang;st.peelT=0.08}
+else{st.liftT=reduced?0:1;st.ox.tune(7,1,0);st.oy.tune(7,1,0);st.tx=st.ox.value;st.ty=st.oy.value;if(!reduced){st.ang=Math.atan2(q.y>=0?1:-1,q.x>=0?1:-1);st.peelT=0.17}}
+btn.dataset.cursorLabel=ang!==null?'Peel':'Drag';if(touch&&navigator.vibrate)try{navigator.vibrate(8)}catch(e){}kick()};
+const move=(x,y)=>{if(!grab)return;if(!grab.moved&&Math.hypot(x-grab.x0,y-grab.y0)>SLOP)grab.moved=true;
+if(grab.mode==='drag'){st.tx=x-grab.gx;st.ty=y-grab.gy}
+else{const dx=x-grab.sx,dy=y-grab.sy,a=st.ang+TILT,along=-(dx*Math.cos(a)+dy*Math.sin(a)),cells=(Math.max(along,0)+Math.hypot(dx,dy)*0.25)/S;st.peelT=Math.min(1,Math.max(0.08,(cells*0.5)/1.55*1.25))}
+kick()};
+const finish=(cancel=false)=>{if(!grab)return;const was=grab;grab=null;
+if(!was.moved&&!cancel){st.liftT=0;st.peelT=0;st.ox.tune(2.4,0.62,0);st.oy.tune(2.4,0.62,0);kick();return}
+suppressClick=true;setTimeout(()=>{suppressClick=false},400);
+if(was.mode==='drag'){st.liftT=0;st.peelT=0;if(reduced){st.ox.tune(4,1,0);st.oy.tune(4,1,0)}else{st.ox.tune(2.4,0.62,0);st.oy.tune(2.4,0.62,0)}
+const kk=reduced?0:0.12;st.tx+=Math.max(-S,Math.min(S,st.ox.velocity*kk));st.ty+=Math.max(-S,Math.min(S,st.oy.velocity*kk));
+const r=btn.getBoundingClientRect(),cx0=r.left+r.width/2-st.ox.value,cy0=r.top+r.height/2-st.oy.value,m=S*0.6;
+st.tx=Math.max(m-cx0,Math.min(innerWidth-m-cx0,st.tx));st.ty=Math.max(m+56-cy0,Math.min(innerHeight-m-cy0,st.ty))}
+else if(!cancel&&Math.max(st.peel.value,st.peelT)>PEEL_OFF&&!reduced){st.fly=0.0001;st.peelT=Math.max(st.peel.value,0.75)}
+else{st.peelT=0}
+kick()};
+btn.addEventListener('pointerdown',e=>{if(!landed()||st.fly>0||grab||e.button>0)return;
+if(e.pointerType==='mouse'){e.preventDefault();try{btn.setPointerCapture(e.pointerId)}catch(_){}begin(e.pointerId,e.clientX,e.clientY,false);return}
+const id=e.pointerId,x=e.clientX,y=e.clientY;cancelPending();
+pending={id,x0:x,y0:y,x,y,t:performance.now(),timer:setTimeout(()=>{if(pending&&pending.id===id){const p=pending;pending=null;try{btn.setPointerCapture(id)}catch(_){}begin(id,p.x,p.y,true);if(grab)grab.moved=true}},LONG_PRESS)}});
+btn.addEventListener('pointermove',e=>{
+if(pending&&pending.id===e.pointerId){if(e.timeStamp-pending.t>=LONG_PRESS){const p=pending;cancelPending();try{btn.setPointerCapture(p.id)}catch(_){}begin(p.id,p.x,p.y,true);if(grab)grab.moved=true}
+else{if(Math.hypot(e.clientX-pending.x0,e.clientY-pending.y0)>SLOP)cancelPending();else{pending.x=e.clientX;pending.y=e.clientY}return}}
+if(grab&&grab.id===e.pointerId){move(e.clientX,e.clientY);return}
+if(!grab&&e.pointerType==='mouse'&&landed()&&st.fly===0){const ang=peelAngle(local(e.clientX,e.clientY));
+if(ang!==null){st.ang=ang;st.peelT=0.07;st.liftT=0}else{st.peelT=0;st.liftT=reduced?0:0.14}btn.dataset.cursorLabel=ang!==null?'Peel':'Open';kick()}});
+const onUp=e=>{if(pending&&pending.id===e.pointerId)cancelPending();if(grab&&grab.id===e.pointerId)finish(e.type==='pointercancel')};
+btn.addEventListener('pointerup',onUp);btn.addEventListener('pointercancel',onUp);
+btn.addEventListener('pointerleave',()=>{if(!grab){st.peelT=0;st.liftT=0;kick()}});
+btn.addEventListener('contextmenu',e=>{if(grab||pending)e.preventDefault()});
+addEventListener('touchmove',e=>{if(grab&&grab.touch){if(e.cancelable)e.preventDefault();e.stopPropagation()}},{passive:false,capture:true});
+addEventListener('blur',()=>{cancelPending();if(grab)finish(true)});
 const set=on=>{if(on===shown)return;if(!cv)build();shown=on;btn.classList.toggle('is-on',on);if(raf){cancelAnimationFrame(raf);raf=0}
+if(!on){if(reborn){clearTimeout(reborn);reborn=0}resetAll()}
 if(on){if(reduced){g.clearRect(0,0,cv.width,cv.height);g.drawImage(img,0,0);return}t0=performance.now();raf=requestAnimationFrame(frame)}else g.clearRect(0,0,cv.width,cv.height)};
-btn.addEventListener('click',e=>{e.preventDefault();open(btn)});
+btn.addEventListener('click',e=>{e.preventDefault();if(suppressClick){suppressClick=false;return}if(st.fly>0)return;open(btn)});
 /* the very end of the scroll: the footer's bottom bar fully in view */
 const end=ft.querySelector('.site-footer__bottom')||ft;
 const chk=()=>{const r=end.getBoundingClientRect();set(r.bottom<=innerHeight+2&&r.top<innerHeight)};
 addEventListener('scroll',chk,{passive:true});addEventListener('resize',chk);chk();
-window.__giftSticker={set,state:()=>({shown,points:pts.length,S,W,k}),at:t=>{if(!cv)build();shown=true;btn.classList.add('is-on');fixedT=t;if(raf){cancelAnimationFrame(raf);raf=0}frame(0)},live:()=>{fixedT=-1}};
+window.__giftSticker={set,state:()=>({shown,points:pts.length,S,W,k,peel:+st.peel.value.toFixed(3),lift:+st.lift.value.toFixed(3),ox:+st.ox.value.toFixed(1),oy:+st.oy.value.toFixed(1),fly:st.fly}),at:t=>{if(!cv)build();shown=true;btn.classList.add('is-on');fixedT=t;if(raf){cancelAnimationFrame(raf);raf=0}frame(0)},live:()=>{fixedT=-1}};
 })();
