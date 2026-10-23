@@ -1,3 +1,35 @@
+(()=>{/* MEDIA PRELOAD (Shifat Oct 23 2:42 PM "preload fast on first frame for better ux"): no grey box, no alt text, no broken icon, ever.
+Every image and video carries an inline tiny blurred preview (LQIP) as its background, so a box is never empty. Images off screen are
+taken over here: their src becomes a transparent placeholder of the exact same aspect ratio (no layout shift) and the real file is
+asked for up to ~3 screens ahead (6 on phones and slow networks), nearest first, a few at a time; the ones already that close load right away. The browser keeps showing the placeholder until the real image is complete, so it lands whole,
+never half-painted. A failed file is retried once, then the preview stays. Posters (each clip's first frame) load up front; on desktop the clip itself starts buffering ~1.5 screens early;
+the player below plays them only in view. Without JS the native lazy loading stands. */
+const vh=innerHeight||800,PHONE=matchMedia('(pointer:coarse)').matches||innerWidth<820,C=navigator.connection,SD=!!(C&&C.saveData);
+const SLOW=!!(C&&(/(^|-)([23]g)$/.test(C.effectiveType||'')||C.downlink&&C.downlink<3));
+const IMG_M=Math.round(Math.max((SLOW||PHONE?6:3)*vh,2600)),VID_M=Math.round(Math.max(1.5*vh,1100));
+const PH=(w,h)=>`data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='${w||1}' height='${h||1}'/%3E`;
+const isPH=s=>!s||s.startsWith('data:');
+const imgs=[...document.querySelectorAll('img[loading="lazy"]')];
+const go=im=>{const r=im.dataset.real;if(r&&isPH(im.getAttribute('src'))){im.src=r;return 1}return 0};
+const done=im=>{if(im.naturalWidth&&!isPH(im.getAttribute('src')))im.style.background=''};/* once the real file is in, the preview goes, so a loaded page renders exactly as before */
+imgs.forEach(im=>{const s=im.getAttribute('src');if(isPH(s))return;im.dataset.real=s;if(im.complete)done(im);im.addEventListener('load',()=>done(im));
+im.addEventListener('error',()=>{const cur=im.getAttribute('src');if(isPH(cur))return;
+if(!im.dataset.retry){im.dataset.retry=1;im.src=PH(im.getAttribute('width'),im.getAttribute('height'));setTimeout(()=>{im.src=s+(s.includes('?')?'&':'?')+'r=1'},700)}
+else im.src=PH(im.getAttribute('width'),im.getAttribute('height'))});
+if(im.complete&&!im.naturalWidth){im.dispatchEvent(new Event('error'));return}});
+if(!('IntersectionObserver' in window)){imgs.forEach(im=>{im.loading='eager'});return}
+const take=[];for(const im of imgs){if(im.complete||!im.dataset.real)continue;const r=im.getBoundingClientRect();if(r.bottom<-IMG_M||r.top>vh+IMG_M){im.src=PH(im.getAttribute('width'),im.getAttribute('height'));im.loading='eager';take.push(im)}else im.loading='eager'}
+/* a small queue, nearest first, keeps the line full without splitting it across every file at once (phones get 4 at a time) */
+const K=SLOW||PHONE?4:6,want=new Set();let fly=0;
+const dist=r=>r.top>=vh?r.top-vh:r.bottom<=0?-r.bottom*1.5:0;
+const pump=()=>{if(fly>=K||!want.size)return;const a=[...want].map(im=>[im,dist(im.getBoundingClientRect())]).sort((x,y)=>x[1]-y[1]);
+for(const [im] of a){if(fly>=K)break;want.delete(im);if(im.dataset.real&&!isPH(im.getAttribute('src')))continue;fly++;let f=0;const fin=()=>{if(f)return;f=1;im.removeEventListener('load',fin);im.removeEventListener('error',fin);fly--;pump()};im.addEventListener('load',fin);im.addEventListener('error',fin);if(!go(im))fin()}};
+const io=new IntersectionObserver(es=>{for(const e of es)if(e.isIntersecting){io.unobserve(e.target);want.add(e.target)}pump()},{rootMargin:IMG_M+'px 0px'});
+take.forEach(im=>io.observe(im));
+const vio=new IntersectionObserver(es=>{for(const e of es){if(!e.isIntersecting)continue;const v=e.target;vio.unobserve(v);if(v.preload==='none'&&v.readyState===0){v.preload='auto';v.load()}}},{rootMargin:VID_M+'px 0px'});
+/* phones and data saver: the poster (already loaded, it is the clip's first frame) holds the box and the clip itself loads only when it plays, so a phone never pulls clips it may not reach */
+if(!PHONE&&!SD)document.querySelectorAll('video.lv').forEach(v=>vio.observe(v));
+})();
 (()=>{/* BUTTON v2, the portfolio's ink button (src/services/inkButton.ts) in vanilla JS: ink flood from the pointer point,
 masked label roll, ↗ arrow swap, magnet with parallax, soft-body press squash + jelly release, SVG ring ripple. One rAF loop,
 zero cost at rest. Reduced motion: instant colour swap only. Used by the header pill, the big CTA and the video player. */
