@@ -149,6 +149,16 @@ What got us there, release by release:
 
 Between my own checks on the phone, Zero used a stand-in: a phone-sized browser with the CPU slowed 6×, so every release could be measured the same way. On that rig scrolling is clean: 0 frames over 33 ms. About 52 startup tasks are still over 50 ms there, so "zero freeze" isn't finished, and much of what's left is the rig's software graphics, not a real GPU. That's why the rig is only a stand-in. The real judge is my M02s, in my hand, every time.
 
+### Debugging on the devices that matter
+
+The rig can't see a real GPU. So when the site failed on my PC, we stopped guessing and opened `chrome://gpu`: Edge 155 on Windows 10, an Intel UHD 600, 2 cores, 3 GB of RAM. It showed Chrome had switched WebGL off for the whole browser after repeated GPU resets. The ray-traced stone was more than that chip could hold.
+
+My phone's report told the other half: an Adreno 506 with no parallel shader compile, so every new shader blocks the frame.
+
+Those two pages became the spec. Weak GPUs now get a light path with the same layout and the same story, just cheaper light.
+
+> **Steal this:** A guess about the cause always feels right (confirmation bias). A device report is evidence. Ask for `chrome://gpu` before you touch code.
+
 > **Steal this:** Turn "feels smooth" into numbers you can trace: no task over 50 ms, no frame over 33 ms, on a real low-end phone you actually own. Then measure before you fix: our biggest freezes were GPU work, not code. Use a rig between checks, but let the real device have the last word.
 
 ## Sharp where the eye goes
