@@ -275,3 +275,8 @@ article h2{font-size:clamp(40px,5.6vw,76px);max-width:none}
 .gift-nogl__card p{margin:0 0 12px}
 .gift-nogl__t{font-weight:600}
 .gift-nogl__x{margin-top:8px;height:44px;padding:0 22px;border-radius:999px;border:0;background:#121315;color:#fff;font:inherit;cursor:pointer}
+
+/* R6.94 (Shifat Oct 23 2:00 PM): while the cursor trail runs over the gift sticker, the footer's WebGL canvas draws it (refracted); its own canvas steps aside, the button stays live */
+.site-footer .gift-sticker.is-gl .gift-sticker__cv{opacity:0}
+/* R6.94: the sticker's 221 px canvas reached 0.5 px past the right edge between 761 and ~1290 px (a 1 px sideways scroll); the phone rule, widened to every width where the footer is full-bleed */
+@media (max-width:1320px){.site-footer:has(.gift-sticker){overflow-x:clip}}

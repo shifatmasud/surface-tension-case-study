@@ -173,11 +173,16 @@ window.__csPull={get value(){return pull},get committed(){return cAt>=0}};go()}
 (()=>{/* GPU footer bar (Shifat 06:33Z "Gpu version"): the portfolio's lime glow bar drawn in WebGL (footerWorld.ts footBar,
 layer for layer) and bent by the portfolio's cursor trail (ScreenPaint.ts + ScreenPaintDistortion, same numbers), on one small
 canvas behind the footer text. Lazy (starts when the footer nears the viewport), sleeps when off-screen or still, DOM bar stays as
-the fallback (no WebGL, reduced motion, context lost). Zero dependencies. */
+the fallback (no WebGL, reduced motion, context lost). Zero dependencies.
+R6.94 (Shifat Oct 23 2:00 PM "Just old footer with plain white bg but fill bar & gift sticker gets refracted on cursor trail"): the
+same canvas now also reaches up over the gift sticker. While the trail runs over the sticker, the sticker's own 2D canvas is
+uploaded and drawn here (its DOM canvas goes transparent, the button stays for the peel/drag/tap), so the trail bends the bar
+and the sticker together; once the trail has died out the DOM sticker takes over again. On white the trail's colour fringe is
+kept faint; on the bar and the sticker it is the portfolio's. */
 const H=document.documentElement,ft=document.querySelector('.site-footer'),track=document.querySelector('.overscroll__track'),bar=document.querySelector('.overscroll__bar');
 if(!ft||!track||!bar||!('IntersectionObserver' in window)||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
 const M=72,PHONE=matchMedia('(pointer:coarse)').matches||innerWidth<820,KP=Math.min(1.5,devicePixelRatio||1)/4;
-let cv,gl,P={},T={},U={},vb,on=0,vis=0,raf=0,dead=0,dirty=1,sceneDirty=1,cw=1,ch=1,dpr=1,pw=2,ph=2,lw=1,lh=1,bg=[1,1,1],rect=null,trk=[0,0,0,0];
+let cv,gl,P={},T={},U={},vb,sb,stk=null,stkOn=0,stkHot=0,stkVer=-1,stkPv=-1,stkDirty=0,scx=0,scy=0,on=0,vis=0,raf=0,dead=0,dirty=1,sceneDirty=1,cw=1,ch=1,dpr=1,pw=2,ph=2,lw=1,lh=1,bg=[1,1,1],rect=null,trk=[0,0,0,0];
 let mx=-1e4,my=-1e4,hasP=0,lmx=0,lmy=0,lastTop=null,lastSY=scrollY,sDelta=0,from=[0,0,0],to=[0,0,0],vel=[0,0],moved=0,idle=0,last=0,bf=0,bfFrom=0,bfTo=0,bfT=1,ping=0;
 const VS='attribute vec2 p;varying vec2 v_uv;void main(){v_uv=p*.5+.5;gl_Position=vec4(p,0.,1.);}';
 const PAINT=`precision highp float;uniform sampler2D u_prev,u_low;uniform vec2 u_px;uniform vec4 u_from,u_to;uniform vec2 u_vel,u_off;varying vec2 v_uv;
@@ -194,6 +199,7 @@ vec3 n0=noised(gl_FragCoord.xy*.02*(1.-low.xy));vec2 n1=noised(gl_FragCoord.xy*.
 vec4 data=texture2D(u_prev,v_uv-u_off+upstream*u_px);data.xy-=.5;
 vec4 change=(vec3(.975,.95,.8).xxyz-1.)*data;change+=vec4(u_vel*brush,rw.yy*brush);change.zw=sign(change.zw)*max(vec2(.004),abs(change.zw));data+=change;
 data.xy+=.5;gl_FragColor=clamp(data,0.,1.);}`;
+const STKVS='attribute vec2 p;uniform vec2 u_c,u_ax,u_ay,u_res;varying vec2 v_uv;void main(){v_uv=p*.5+.5;vec2 q=u_c+p.x*u_ax+p.y*u_ay;gl_Position=vec4(q.x/u_res.x*2.-1.,1.-q.y/u_res.y*2.,0.,1.);}';
 const COPY=`precision mediump float;varying vec2 v_uv;uniform sampler2D u_t;void main(){gl_FragColor=texture2D(u_t,v_uv);}`;
 const BLUR=`precision highp float;uniform sampler2D u_t;uniform vec2 u_dir;varying vec2 v_uv;
 void main(){vec4 c=texture2D(u_t,v_uv)*.1633;vec2 d=u_dir;c+=(texture2D(u_t,v_uv-d)+texture2D(u_t,v_uv+d))*.1531;d+=u_dir;
@@ -216,31 +222,57 @@ float cf=clamp(.5-fcap(pc,vec2(xr-W,yT),vec2(xr,yB))/aa,0.,1.);c=mix(c,LIME,cf);
 c=mix(c,vec3(1.),clamp(.5-fcap(pc,vec2(xr-W+6.,yT+2.),vec2(xr-6.,yT+5.))/aa,0.,1.)*.55);return mix(col,c,ct);}
 void main(){gl_FragColor=vec4(footBar(u_bg),1.);}`;
 // ScreenPaintDistortion (R6.20, locked on the portfolio): 9 jittered taps along the paint velocity + the phase-shifted sine fringe
-const DIST=`precision highp float;varying vec2 v_uv;uniform sampler2D u_scene,u_paint;uniform vec2 u_ptx,u_css;uniform float u_on;
+const DIST=`precision highp float;varying vec2 v_uv;uniform sampler2D u_scene,u_paint;uniform vec2 u_ptx,u_css;uniform float u_on;uniform vec3 u_bg;
 float ign(vec2 p){return fract(52.9829189*fract(dot(p,vec2(.06711056,.00583715))));}
 void main(){vec4 data=texture2D(u_paint,v_uv);float weight=(data.z+data.w)*.5;vec2 vel=(.5-data.xy-.001)*2.*weight;
 vec2 stepUv=vel*3./4.*u_ptx*5.;vec2 bn=vec2(ign(gl_FragCoord.xy+vec2(17.,29.)),ign(gl_FragCoord.yx+vec2(5.,61.)));vec2 p=v_uv+bn*stepUv;
 vec3 acc=vec3(0.);for(int i=0;i<9;i++){acc+=texture2D(u_scene,p).rgb;p+=stepUv;}acc/=9.;
-vec2 e=min(v_uv,1.-v_uv)*u_css;float edge=smoothstep(0.,28.,e.y)*smoothstep(0.,28.,e.x);
+vec2 e=min(v_uv,1.-v_uv)*u_css;float edge=smoothstep(0.,28.,e.y)*smoothstep(0.,28.,e.x)*mix(.12,1.,clamp(length(acc-u_bg)*4.,0.,1.));
 acc+=sin(vec3(vel.x+vel.y)*40.+vec3(0.,2.,4.)*.5)*smoothstep(.4,-.9,weight)*1.25*max(abs(vel.x),abs(vel.y))*10.*edge*u_on;
 gl_FragColor=vec4(clamp(acc,0.,1.),1.);}`;
 function sh(t,s){const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))throw new Error('glbar shader');return o}
-function prog(fs,names){const p=gl.createProgram();gl.attachShader(p,sh(gl.VERTEX_SHADER,VS));gl.attachShader(p,sh(gl.FRAGMENT_SHADER,fs));gl.bindAttribLocation(p,0,'p');gl.linkProgram(p);
+function prog(fs,names,vs){const p=gl.createProgram();gl.attachShader(p,sh(gl.VERTEX_SHADER,vs||VS));gl.attachShader(p,sh(gl.FRAGMENT_SHADER,fs));gl.bindAttribLocation(p,0,'p');gl.linkProgram(p);
 if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw new Error('glbar link');const u={};names.forEach(n=>u[n]=gl.getUniformLocation(p,n));return{p,u}}
 function tgt(w,h){const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
 [gl.TEXTURE_MIN_FILTER,gl.TEXTURE_MAG_FILTER].forEach(k=>gl.texParameteri(gl.TEXTURE_2D,k,gl.LINEAR));[gl.TEXTURE_WRAP_S,gl.TEXTURE_WRAP_T].forEach(k=>gl.texParameteri(gl.TEXTURE_2D,k,gl.CLAMP_TO_EDGE));
 const f=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,f);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,t,0);return{t,f,w,h}}
 function clearTo(o,r,g,b,a){gl.bindFramebuffer(gl.FRAMEBUFFER,o.f);gl.viewport(0,0,o.w,o.h);gl.clearColor(r,g,b,a);gl.clear(gl.COLOR_BUFFER_BIT)}
-function fallback(){dead=1;on=0;H.classList.remove('foot-glbar');if(cv)cv.style.display='none';if(raf)cancelAnimationFrame(raf);raf=0}
+function stkSet(v){if(v===stkOn)return;stkOn=v;stkDirty=1;const b=window.__csGiftGL&&window.__csGiftGL.btn;if(b)b.classList.toggle('is-gl',!!v)}
+function fallback(){stkSet(0);dead=1;on=0;H.classList.remove('foot-glbar');if(cv)cv.style.display='none';if(raf)cancelAnimationFrame(raf);raf=0}
 function measure(){const fr=ft.getBoundingClientRect(),tr=track.getBoundingClientRect(),W=H.clientWidth;
-cw=W;ch=Math.round(tr.height)+2*M;const top=Math.round(tr.top-fr.top)-M;cv.style.cssText=`position:absolute;left:${-Math.round(fr.left)}px;top:${top}px;width:${cw}px;height:${ch}px;z-index:-1;pointer-events:none;display:block`;
-const nd=PHONE?1:Math.min(1.5,devicePixelRatio||1),W2=Math.max(1,Math.round(cw*nd)),H2=Math.max(1,Math.round(ch*nd));
-const nl=Math.round(tr.left-fr.left+Math.round(fr.left)),nt=M;trk=[nl,nt,nl+tr.width,nt+tr.height];
+const G=window.__csGiftGL,sb_=G&&G.btn,tT=Math.round(tr.top-fr.top);let sTop=1e9,sBot=-1e9,bx=0,by=0;
+if(sb_&&sb_.offsetWidth){const br=sb_.getBoundingClientRect(),x=G.xf(),hw=Math.round(sb_.offsetWidth*2.4)/2;bx=br.left+br.width/2-x.x-fr.left;by=br.top+br.height/2-x.y-fr.top;sTop=by-hw-6-sb_.offsetWidth*.4;sBot=by+hw+6}
+const top=Math.floor(Math.min(tT-M,Math.max(0,sTop))),bot=Math.ceil(Math.max(tT+tr.height+M,Math.min(fr.height,sBot)));
+cw=W;ch=Math.max(1,bot-top);cv.style.cssText=`position:absolute;left:${-Math.round(fr.left)}px;top:${top}px;width:${cw}px;height:${ch}px;z-index:-1;pointer-events:none;display:block`;
+scx=bx+Math.round(fr.left);scy=by-top;
+const nd=PHONE?Math.min(2,devicePixelRatio||1):Math.min(1.5,devicePixelRatio||1),W2=Math.max(1,Math.round(cw*nd)),H2=Math.max(1,Math.round(ch*nd));
+const nl=Math.round(tr.left-fr.left+Math.round(fr.left)),nt=tT-top;trk=[nl,nt,nl+tr.width,nt+tr.height];
 if(W2!==cv.width||H2!==cv.height||nd!==dpr){dpr=nd;cv.width=W2;cv.height=H2;pw=Math.max(2,Math.ceil(cw*KP));ph=Math.max(2,Math.ceil(ch*KP));lw=Math.max(1,pw>>1);lh=Math.max(1,ph>>1);
-['a','b','l','lb','s'].forEach(k=>{if(T[k]){gl.deleteTexture(T[k].t);gl.deleteFramebuffer(T[k].f)}});
-T.a=tgt(pw,ph);T.b=tgt(pw,ph);T.l=tgt(lw,lh);T.lb=tgt(lw,lh);T.s=tgt(W2,H2);[T.a,T.b,T.l,T.lb].forEach(o=>clearTo(o,.5,.5,0,0))}
+['a','b','l','lb','s','bar'].forEach(k=>{if(T[k]){gl.deleteTexture(T[k].t);gl.deleteFramebuffer(T[k].f)}});
+T.a=tgt(pw,ph);T.b=tgt(pw,ph);T.l=tgt(lw,lh);T.lb=tgt(lw,lh);T.s=tgt(W2,H2);T.bar=tgt(W2,H2);[T.a,T.b,T.l,T.lb].forEach(o=>clearTo(o,.5,.5,0,0))}
 const c=getComputedStyle(ft).backgroundColor.match(/[\d.]+/g);if(c&&(c.length<4||+c[3]>.5))bg=[c[0]/255,c[1]/255,c[2]/255];
 dirty=0;sceneDirty=1;kick()}
+// R6.94: is the trail on the sticker? (the brush's last segment against the sticker, css px in this canvas; only the sticker
+// and its shadow have to be inside, its transparent margin may run off an edge; dragged out of here it is the DOM one again); it stays drawn
+// here for 48 frames after the trail last touched it (the paint fades per frame, ~20% a frame), then the DOM sticker is back
+function stkPick(r,R){const G=window.__csGiftGL;let want=0;
+if(G&&G.cv&&G.ready()){const x=G.xf(),cx=scx+x.x,cy=scy+x.y,hw=G.W/2*x.sc*(Math.abs(Math.cos(x.r))+Math.abs(Math.sin(x.r)));
+const core=G.S*.75*x.sc;if(cx-core>=0&&cx+core<=cw&&cy-G.S*(.6*x.sc+.05)>=0&&cy+G.S*(.6*x.sc+.14+4.9*Math.max(0,x.sc-1))<=ch){let hit=0;
+if(hasP&&R>0){const ax=lmx-r.left,ay=lmy-r.top,dx=mx-r.left-ax,dy=my-r.top-ay,L2=dx*dx+dy*dy,t=L2>0?Math.max(0,Math.min(1,((cx-ax)*dx+(cy-ay)*dy)/L2)):0;
+hit=Math.hypot(ax+dx*t-cx,ay+dy*t-cy)<G.S*.8*x.sc+R}
+if(hit)stkHot=48;else if(stkHot>0)stkHot--;want=stkHot>0}else stkHot=0}else stkHot=0;
+stkSet(want?1:0)}
+function stkCompose(){const G=window.__csGiftGL;if(!stkOn||!G)return;
+if(G.ver!==stkVer){stkVer=G.ver;gl.bindTexture(gl.TEXTURE_2D,stk);gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,true);
+try{gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,G.cv)}catch(e){gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,false);stkSet(0);return}
+gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,false);stkDirty=1}
+if(G.pv!==stkPv){stkPv=G.pv;stkDirty=1}if(!stkDirty)return;stkDirty=0;
+gl.useProgram(P.copy.p);tex(P.copy.u.u_t,T.bar.t,0);quad(T.s);
+const x=G.xf(),c=Math.cos(x.r),sn=Math.sin(x.r),h=G.W/2*x.sc,u=P.stk.u;gl.useProgram(P.stk.p);tex(u.u_t,stk,0);
+gl.uniform2f(u.u_c,scx+x.x,scy+x.y);gl.uniform2f(u.u_ax,c*h,sn*h);gl.uniform2f(u.u_ay,-sn*h,c*h);gl.uniform2f(u.u_res,cw,ch);
+gl.bindBuffer(gl.ARRAY_BUFFER,sb);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
+gl.bindFramebuffer(gl.FRAMEBUFFER,T.s.f);gl.viewport(0,0,T.s.w,T.s.h);gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+gl.disable(gl.BLEND);gl.bindBuffer(gl.ARRAY_BUFFER,vb);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0)}
 function quad(o,w,h){gl.bindFramebuffer(gl.FRAMEBUFFER,o?o.f:null);gl.viewport(0,0,o?o.w:w,o?o.h:h);gl.drawArrays(gl.TRIANGLES,0,3)}
 function tex(u,t,unit){gl.activeTexture(gl.TEXTURE0+unit);gl.bindTexture(gl.TEXTURE_2D,t);gl.uniform1i(u,unit)}
 const ease=x=>{const ax=.57,bx=3*(.22-.19)-ax,cx=1-ax-bx,ay=3,by=-ay,cy=1-ay-by;let t=x;for(let i=0;i<6;i++){const xt=((cx*t+bx)*t+ax)*t-x,d=(3*cx*t+2*bx)*t+ax;if(Math.abs(d)<1e-6)break;t=Math.min(1,Math.max(0,t-xt/d))}return((cy*t+by)*t+ay)*t};
@@ -253,18 +285,19 @@ const f=Math.min(1,Math.max(0,parseFloat(bar.style.getPropertyValue('--f'))||0))
 if(Math.abs(f-bfTo)>1e-4){bfFrom=bf;bfTo=f;bfT=0}const ob=bf;bfT=Math.min(1,bfT+dt/.32);bf=bfFrom+(bfTo-bfFrom)*ease(bfT);if(Math.abs(bf-ob)>1e-5)sceneDirty=1;
 // brush (ScreenPaint.update, desktop rule on every device): radius from px moved + the scroll term x3, tapered from the last radius
 const ratio=.6,maxR=Math.max(40,innerWidth/20),sT=jump?0:s;let R=0;
-if(hasP){R=Math.min(1,Math.max(0,Math.hypot(mx-lmx,(my+sT*ratio*3)-lmy)/100))*maxR;if(sT===0&&!moved)R=0}lmx=mx;lmy=my;moved=0;R*=KP;
+if(hasP){R=Math.min(1,Math.max(0,Math.hypot(mx-lmx,(my+sT*ratio*3)-lmy)/100))*maxR;if(sT===0&&!moved)R=0}stkPick(r,R);lmx=mx;lmy=my;moved=0;R*=KP;
 from=to.slice();to=[(mx-r.left)*KP,(r.bottom-my)*KP+(jump?0:sT*ratio*KP*.5),R];if(!hasP||jump){from=to.slice();hasP=1}
 vel=[vel[0]*.8+(to[0]-from[0])*dt*.8,vel[1]*.8+(to[1]-from[1])*dt*.8];
-const active=R>.01||from[2]>.01||sceneDirty;if(active)idle=0;else idle+=dt;
+const active=R>.01||from[2]>.01||sceneDirty||stkOn;if(active)idle=0;else idle+=dt;
 // paint pass
 const off=jump?0:(s*ratio+dTop)/Math.max(1,ch);const src=ping?T.b:T.a,dst=ping?T.a:T.b;ping^=1;
 gl.useProgram(P.paint.p);const u=P.paint.u;tex(u.u_prev,src.t,0);tex(u.u_low,T.l.t,1);gl.uniform2f(u.u_px,1/pw,1/ph);gl.uniform2f(u.u_off,0,off);
 gl.uniform4f(u.u_from,from[0],from[1],from[2],1);gl.uniform4f(u.u_to,to[0],to[1],to[2],1);gl.uniform2f(u.u_vel,vel[0],vel[1]);quad(dst);
 gl.useProgram(P.copy.p);tex(P.copy.u.u_t,dst.t,0);quad(T.l);
 gl.useProgram(P.blur.p);tex(P.blur.u.u_t,T.l.t,0);gl.uniform2f(P.blur.u.u_dir,8/lw*.25,0);quad(T.lb);tex(P.blur.u.u_t,T.lb.t,0);gl.uniform2f(P.blur.u.u_dir,0,8/lh*.25);quad(T.l);
-if(sceneDirty){sceneDirty=0;gl.useProgram(P.scene.p);const q=P.scene.u;gl.uniform4f(q.u_bar,trk[0],trk[1],trk[2],trk[3]);gl.uniform3f(q.u_bfill,bf,cw,ch);gl.uniform3f(q.u_bg,bg[0],bg[1],bg[2]);gl.uniform2f(q.u_res,T.s.w,T.s.h);quad(T.s)}
-gl.useProgram(P.dist.p);const q=P.dist.u;tex(q.u_scene,T.s.t,0);tex(q.u_paint,dst.t,1);gl.uniform2f(q.u_ptx,1/pw,1/ph);gl.uniform2f(q.u_css,cw,ch);gl.uniform1f(q.u_on,1);quad(null,cv.width,cv.height);
+if(sceneDirty){sceneDirty=0;gl.useProgram(P.scene.p);const q=P.scene.u;gl.uniform4f(q.u_bar,trk[0],trk[1],trk[2],trk[3]);gl.uniform3f(q.u_bfill,bf,cw,ch);gl.uniform3f(q.u_bg,bg[0],bg[1],bg[2]);gl.uniform2f(q.u_res,T.s.w,T.s.h);quad(T.bar);stkDirty=1}
+stkCompose();
+gl.useProgram(P.dist.p);const q=P.dist.u;tex(q.u_scene,(stkOn?T.s:T.bar).t,0);tex(q.u_paint,dst.t,1);gl.uniform2f(q.u_ptx,1/pw,1/ph);gl.uniform2f(q.u_css,cw,ch);gl.uniform3f(q.u_bg,bg[0],bg[1],bg[2]);gl.uniform1f(q.u_on,1);quad(null,cv.width,cv.height);
 if(!H.classList.contains('foot-glbar'))H.classList.add('foot-glbar');
 if(vis&&idle<3){if(!raf)raf=requestAnimationFrame(frame)}else{last=0}}
 function kick(){if(on&&vis&&!raf&&!dead){idle=0;raf=requestAnimationFrame(frame)}}
@@ -272,11 +305,14 @@ function init(){if(on||dead)return;cv=document.createElement('canvas');cv.classN
 const o={alpha:false,antialias:false,depth:false,stencil:false,premultipliedAlpha:false,preserveDrawingBuffer:false,powerPreference:'low-power'};
 try{gl=cv.getContext('webgl',o)||cv.getContext('experimental-webgl',o)}catch(e){gl=null}if(!gl){dead=1;return}
 try{P.paint=prog(PAINT,['u_prev','u_low','u_px','u_from','u_to','u_vel','u_off']);P.copy=prog(COPY,['u_t']);P.blur=prog(BLUR,['u_t','u_dir']);
-P.scene=prog(SCENE,['u_bar','u_bfill','u_bg','u_res']);P.dist=prog(DIST,['u_scene','u_paint','u_ptx','u_css','u_on'])}catch(e){dead=1;return}
+P.scene=prog(SCENE,['u_bar','u_bfill','u_bg','u_res']);P.dist=prog(DIST,['u_scene','u_paint','u_ptx','u_css','u_on','u_bg']);P.stk=prog(COPY.replace('uniform sampler2D u_t;','uniform sampler2D u_t;'),['u_t','u_c','u_ax','u_ay','u_res'],STKVS)}catch(e){dead=1;return}
+sb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,sb);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+stk=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,stk);[gl.TEXTURE_MIN_FILTER,gl.TEXTURE_MAG_FILTER].forEach(k=>gl.texParameteri(gl.TEXTURE_2D,k,gl.LINEAR));[gl.TEXTURE_WRAP_S,gl.TEXTURE_WRAP_T].forEach(k=>gl.texParameteri(gl.TEXTURE_2D,k,gl.CLAMP_TO_EDGE));
+if(window.__csGiftGL)window.__csGiftGL.kick=()=>{if(stkOn)kick()};
 vb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vb);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
 cv.addEventListener('webglcontextlost',e=>{e.preventDefault();fallback()});
 ft.appendChild(cv);on=1;measure();
-new IntersectionObserver(es=>{vis=es[es.length-1].isIntersecting;if(vis){lastTop=null;kick()}},{rootMargin:'40px 0px'}).observe(cv);
+new IntersectionObserver(es=>{vis=es[es.length-1].isIntersecting;if(vis){lastTop=null;kick()}else stkSet(0)},{rootMargin:'40px 0px'}).observe(cv);
 const mv=(x,y)=>{if(!hasP){lmx=x;lmy=y}mx=x;my=y;moved=1;kick()};
 addEventListener('pointermove',e=>mv(e.clientX,e.clientY),{passive:true});
 addEventListener('touchstart',e=>{const t=e.touches[0];if(t){lmx=t.clientX;lmy=t.clientY;mv(t.clientX,t.clientY)}},{passive:true});
@@ -300,6 +336,8 @@ const hasGL=()=>{try{const c=document.createElement('canvas');const g=c.getConte
 load().then(m=>m.giftOpen(el)).catch(()=>{}).finally(()=>{busy=0})};
 const btn=document.createElement('button');btn.type='button';btn.className='gift-sticker';btn.setAttribute('aria-label','Open gift');btn.setAttribute('aria-haspopup','dialog');
 ft.appendChild(btn);
+/* R6.94: what the footer's WebGL canvas reads to draw this sticker under the trail (script.js GPU footer bar) */
+const GLX={x:0,y:0,r:0,sc:1},GLH=window.__csGiftGL={btn,cv:null,W:0,S:0,ver:0,pv:0,kick:null,xf:()=>GLX,ready:()=>false};
 const ACC=[255,46,147],GIFT_D='M216,72H180.92c.39-.33.79-.65,1.17-1A29.53,29.53,0,0,0,192,49.57,32.62,32.62,0,0,0,158.44,16,29.53,29.53,0,0,0,137,25.91a54.94,54.94,0,0,0-9,14.48,54.94,54.94,0,0,0-9-14.48A29.53,29.53,0,0,0,97.56,16,32.62,32.62,0,0,0,64,49.57,29.53,29.53,0,0,0,73.91,71c.38.33.78.65,1.17,1H40A16,16,0,0,0,24,88v32a16,16,0,0,0,16,16v64a16,16,0,0,0,16,16h60a4,4,0,0,0,4-4V120H40V88h80v32h16V88h80v32H136v92a4,4,0,0,0,4,4h60a16,16,0,0,0,16-16V136a16,16,0,0,0,16-16V88A16,16,0,0,0,216,72ZM84.51,59a13.69,13.69,0,0,1-4.5-10A16.62,16.62,0,0,1,96.59,32h.49a13.69,13.69,0,0,1,10,4.5c8.39,9.48,11.35,25.2,12.39,34.92C109.71,70.39,94,67.43,84.51,59Zm87,0c-9.49,8.4-25.24,11.36-35,12.4C137.7,60.89,141,45.5,149,36.51a13.69,13.69,0,0,1,10-4.5h.49A16.62,16.62,0,0,1,176,49.08,13.69,13.69,0,0,1,171.49,59Z',TILT=-8*Math.PI/180;
 const drawSticker=(W,S,k,shadow)=>{const cv=document.createElement('canvas');cv.width=cv.height=Math.round(W*k);const c=cv.getContext('2d');
 c.scale(k,k);c.translate(W/2,W/2);c.rotate(TILT);const R=S/2,m=S*0.075;
@@ -317,7 +355,8 @@ g=cv.getContext('2d');img=drawSticker(W,S,k,true);const rg=drawSticker(W,S,1,fal
 let seed=11;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
 for(let y=0;y<W;y+=step)for(let x=0;x<W;x+=step){const i=(y*W+x)*4;if(rg[i+3]<160)continue;const a=rnd()*Math.PI*2,r=S*(0.55+rnd()*0.75),front=1-y/W;
 pts.push({tx:x,ty:y,sx:W/2+Math.cos(a)*r,sy:W/2+Math.sin(a)*r*0.8+S*0.25,c:(rg[i]<<16)|(rg[i+1]<<8)|rg[i+2],d:0.5*(front*0.7+rnd()*0.3),sw:(rnd()-0.5)*2})}
-buf=g.createImageData(cv.width,cv.height);px=new Uint32Array(buf.data.buffer);face=drawSticker(W,S,k,false)};
+buf=g.createImageData(cv.width,cv.height);px=new Uint32Array(buf.data.buffer);face=drawSticker(W,S,k,false);
+shCv=document.createElement('canvas');flCv=document.createElement('canvas');shCv.width=shCv.height=flCv.width=flCv.height=cv.width;GLH.cv=cv;GLH.W=W;GLH.S=S};
 const frame=now=>{raf=0;const t=fixedT>=0?fixedT:(now-t0)/1000;g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,cv.width,cv.height);
 const land=Math.min(1,Math.max(0,(t-1.05)/0.4));
 if(land<1){px.fill(0);const fade=1-land,cw=cv.width,ch=cv.height,full=Math.max(1,Math.round(step*k));
@@ -327,7 +366,7 @@ const R=ACC[0]+(r0-ACC[0])*m,G=ACC[1]+(g0-ACC[1])*m,B=ACC[2]+(b0-ACC[2])*m,col=(
 const X=Math.round(x*k),Y=Math.round(y*k),sz=uu<1?Math.max(1,Math.round(step*k*0.7)):full;
 for(let yy=0;yy<sz;yy++){const row=Y+yy;if(row<0||row>=ch)continue;for(let xx=0;xx<sz;xx++){const c_=X+xx;if(c_>=0&&c_<cw)px[row*cw+c_]=col}}}
 g.putImageData(buf,0,0)}
-if(land>0){g.globalAlpha=land;g.drawImage(img,0,0);g.globalAlpha=1}
+if(land>0){g.globalAlpha=land;g.drawImage(img,0,0);g.globalAlpha=1}GLH.ver++;
 if(t<DUR&&shown&&fixedT<0)raf=requestAnimationFrame(frame)};
 /* R6.91 (Shifat Oct 23 6:51 AM "make gift sticker behave same like others. Peel, & draggable"): the portfolio's peel + drag,
 the same code as the live site's giftSticker.ts (itself the CTA wall's stickerInteract.ts): the same springs, thresholds, peel
@@ -342,8 +381,8 @@ this.value+=dt*this.velocity;this.velocity+=(dt*(x+this.k3*xd-this.value-this.k1
 const smooth=(a,b,x)=>{const t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-2*t)};
 const LONG_PRESS=400,SLOP=9,PEEL_OFF=0.35,FLY_S=1.35,REACH=0.53;
 const st={ox:new Spring(0,2.4,0.62,0),oy:new Spring(0,2.4,0.62,0),tx:0,ty:0,lift:new Spring(0,2.6,0.42,0),liftT:0,peel:new Spring(0,2.8,0.62,0),peelT:0,ang:Math.PI/4,rot:new Spring(0,2.0,0.5,0),fly:0};
-let face=null,grab=null,pending=null,suppressClick=false,iraf=0,last=0,reborn=0;
-const landed=()=>shown&&!raf&&fixedT<0&&!!cv;
+let face=null,shCv=null,flCv=null,grab=null,pending=null,suppressClick=false,iraf=0,last=0,reborn=0;
+const landed=()=>shown&&!raf&&fixedT<0&&!!cv;GLH.ready=()=>landed()&&st.fly===0&&!btn.classList.contains('is-gone');
 const local=(x_,y_)=>{const r=btn.getBoundingClientRect(),x=x_-(r.left+r.width/2),y=y_-(r.top+r.height/2),a=-(TILT+st.rot.value),ca=Math.cos(a),sa=Math.sin(a),sc=1+0.07*Math.max(0,st.lift.value);
 return{x:(x*ca-y*sa)/sc,y:(x*sa+y*ca)/sc}};
 const peelAngle=q=>(reduced?null:Math.abs(q.x)>0.24*S&&Math.abs(q.y)>0.24*S?Math.atan2(Math.sign(q.y),Math.sign(q.x)):null);
@@ -351,22 +390,29 @@ const shapeP=(c,r)=>{c.beginPath();c.roundRect?c.roundRect(-r,-r,r*2,r*2,r*0.36)
 const draw=()=>{const L=reduced?0:Math.max(0,st.lift.value),pe=reduced?0:Math.max(0,st.peel.value);
 const start=(0.72-REACH)/1.55,pw=pe>0.001?start+Math.min(1,pe)*(1-start):0;
 const t=(0.72-pw*1.55)*S,rr=(0.055+0.05*pw)*S,cdx=Math.cos(st.ang),cdy=Math.sin(st.ang),R=S/2;
-const base=()=>{g.setTransform(k,0,0,k,0,0);g.translate(W/2,W/2);g.rotate(TILT)};
-const half=(beyond,at)=>{const nx=cdx,ny=cdy,px_=-ny,py_=nx,B=S*3,s=beyond?1:-1;g.beginPath();g.moveTo(nx*at+px_*B,ny*at+py_*B);g.lineTo(nx*at-px_*B,ny*at-py_*B);
-g.lineTo(nx*(at+s*B)-px_*B,ny*(at+s*B)-py_*B);g.lineTo(nx*(at+s*B)+px_*B,ny*(at+s*B)+py_*B);g.closePath()};
-g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,cv.width,cv.height);
-base();g.save();if(pw>0){half(false,t);g.clip()}
-g.shadowColor=`rgba(10, 12, 14, ${(0.28*(1-0.45*L)).toFixed(3)})`;g.shadowBlur=S*(0.14+0.3*L);g.shadowOffsetY=S*(0.05+0.16*L);
-g.fillStyle='#f4f4f2';shapeP(g,R);g.fill();g.restore();
+const base=(c=g)=>{c.setTransform(k,0,0,k,0,0);c.translate(W/2,W/2);c.rotate(TILT)};
+const half=(beyond,at,c=g)=>{const nx=cdx,ny=cdy,px_=-ny,py_=nx,B=S*3,s=beyond?1:-1;c.beginPath();c.moveTo(nx*at+px_*B,ny*at+py_*B);c.lineTo(nx*at-px_*B,ny*at-py_*B);
+c.lineTo(nx*(at+s*B)-px_*B,ny*(at+s*B)-py_*B);c.lineTo(nx*(at+s*B)+px_*B,ny*(at+s*B)+py_*B);c.closePath()};
+/* R6.94: the portfolio's R6.92c fix. Once this canvas is uploaded to the footer's WebGL canvas (the trail refracting it),
+Chromium stops clearing a canvas that takes a shadowBlur fill and a drawImage in the same frame, and the soft shadow piles up
+into a dark ring. Every shadow is cast on its own scratch canvas (plain fills only) and drawn in as an image: same pixels. */
+const sh=shCv.getContext('2d');sh.setTransform(1,0,0,1,0,0);sh.clearRect(0,0,shCv.width,shCv.height);
+base(sh);sh.save();if(pw>0){half(false,t,sh);sh.clip()}
+sh.shadowColor=`rgba(10, 12, 14, ${(0.28*(1-0.45*L)).toFixed(3)})`;sh.shadowBlur=S*(0.14+0.3*L);sh.shadowOffsetY=S*(0.05+0.16*L);
+sh.fillStyle='#f4f4f2';shapeP(sh,R);sh.fill();sh.restore();sh.setTransform(1,0,0,1,0,0);
+g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,cv.width,cv.height);g.drawImage(shCv,0,0);
 base();g.save();if(pw>0){half(false,t);g.clip()}g.setTransform(1,0,0,1,0,0);g.drawImage(face,0,0);g.restore();
-if(pw>0){const tr=t+rr*1.2;base();const m11=1-2*cdx*cdx,m12=-2*cdx*cdy,m22=1-2*cdy*cdy;g.transform(m11,m12,m12,m22,2*tr*cdx,2*tr*cdy);
-g.save();half(true,t);g.clip();const gr=g.createLinearGradient(cdx*t,cdy*t,cdx*(t+S),cdy*(t+S));gr.addColorStop(0,'#e6e6e6');gr.addColorStop(0.35,'#d2d2d2');gr.addColorStop(1,'#c4c4c4');
-g.shadowColor='rgba(8, 10, 12, .26)';g.shadowBlur=S*0.07;g.fillStyle=gr;shapeP(g,R);g.fill();g.restore();
+if(pw>0){const fl=flCv.getContext('2d');fl.setTransform(1,0,0,1,0,0);fl.clearRect(0,0,flCv.width,flCv.height);
+const tr=t+rr*1.2;base(fl);const m11=1-2*cdx*cdx,m12=-2*cdx*cdy,m22=1-2*cdy*cdy;fl.transform(m11,m12,m12,m22,2*tr*cdx,2*tr*cdy);
+fl.save();half(true,t,fl);fl.clip();const gr=fl.createLinearGradient(cdx*t,cdy*t,cdx*(t+S),cdy*(t+S));gr.addColorStop(0,'#e6e6e6');gr.addColorStop(0.35,'#d2d2d2');gr.addColorStop(1,'#c4c4c4');
+fl.shadowColor='rgba(8, 10, 12, .26)';fl.shadowBlur=S*0.07;fl.fillStyle=gr;shapeP(fl,R);fl.fill();fl.restore();fl.setTransform(1,0,0,1,0,0);
+g.setTransform(1,0,0,1,0,0);g.drawImage(flCv,0,0);
 base();g.save();shapeP(g,R);g.clip();const eg=g.createLinearGradient(cdx*(t-rr),cdy*(t-rr),cdx*(t+rr*1.6),cdy*(t+rr*1.6));
 eg.addColorStop(0,'rgba(255,255,255,0)');eg.addColorStop(0.55,'rgba(255,255,255,.55)');eg.addColorStop(1,'rgba(255,255,255,0)');half(true,t-rr);g.fillStyle=eg;g.fill();g.restore()}
-g.setTransform(1,0,0,1,0,0)};
+g.setTransform(1,0,0,1,0,0);GLH.ver++;GLH.kick&&GLH.kick()};
 const place=()=>{const L=reduced?0:st.lift.value,fe=st.fly*st.fly*(3-2*st.fly);const fx=fe*fe*S*0.7,fy=-fe*fe*S*2.6,fs=st.fly>0?1-smooth(0.45,1,st.fly):1,rot=st.rot.value+fe*fe*1.9;
-const css=`translate3d(${(st.ox.value+fx).toFixed(1)}px,${(st.oy.value+fy).toFixed(1)}px,0) rotate(${rot.toFixed(3)}rad) scale(${((1+0.07*L)*fs).toFixed(3)})`;if(btn.style.transform!==css)btn.style.transform=css};
+const css=`translate3d(${(st.ox.value+fx).toFixed(1)}px,${(st.oy.value+fy).toFixed(1)}px,0) rotate(${rot.toFixed(3)}rad) scale(${((1+0.07*L)*fs).toFixed(3)})`;if(btn.style.transform!==css){btn.style.transform=css;
+GLX.x=+(st.ox.value+fx).toFixed(1);GLX.y=+(st.oy.value+fy).toFixed(1);GLX.r=+rot.toFixed(3);GLX.sc=+((1+0.07*L)*fs).toFixed(3);GLH.pv++;GLH.kick&&GLH.kick()}};
 const moving=()=>!!grab||!!pending||st.fly>0||[[st.ox,st.tx],[st.oy,st.ty],[st.lift,st.liftT],[st.peel,st.peelT],[st.rot,0]].some(([s_,tg])=>Math.abs(s_.velocity)>1e-4||Math.abs(s_.value-tg)>1e-4);
 const tick=now=>{iraf=0;const dt=Math.min(0.05,last?(now-last)/1000:0.016);last=now;
 st.ox.update(st.tx,dt);st.oy.update(st.ty,dt);st.lift.update(st.liftT,dt);st.peel.update(st.peelT,dt);
