@@ -286,23 +286,55 @@ addEventListener('resize',()=>{dirty=1;kick()});addEventListener('cs-barf',()=>k
 document.fonts&&document.fonts.ready&&document.fonts.ready.then(()=>{dirty=1;kick()})}
 new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting)){init()}},{rootMargin:'600px 0px'}).observe(ft);
 })();
-(()=>{/* GIFT (Shifat Oct 22 9:53 AM "Lets keep og logo click function. Double click should trigger the gift in both site"):
-a double-click (or a double-tap) on the header wordmark or the footer lockup opens the 3D gift box; a single click does
-exactly what it did before. The footer lockup also opens it with Enter / Space. The gift (gift/gift.js + gift.css, three.js
-inside) is fetched on the first double-click only, so nothing of it loads with the page. */
+(()=>{
+/* GIFT (Shifat Oct 23 6:40 AM "Case study ... needs same gift sticker. They must truly feel like one sites pages"):
+the same hot-pink gift sticker as the live site (R6.89). The logo double-click no longer opens the gift. At the very end of
+the page the sticker gathers out of hot-pink embers in the footer; tapping it (or Enter / Space: a real button, "Open gift")
+opens the 3D gift box. The gift (gift/gift.js + gift.css) is fetched on the first open only. */
 const me=document.currentScript,src=(me&&me.src)||location.href,u=p=>new URL(p,src).href;
-const head=document.querySelector('.top .wordmark'),foot=document.querySelector('.site-footer__name');if(!head&&!foot)return;
-let mod=null,busy=0,lastT=0,lastX=0,lastY=0;
+const ft=document.querySelector('.site-footer');if(!ft)return;
+let mod=null,busy=0;
 const load=()=>mod||(mod=new Promise(r=>{const l=document.createElement('link');l.rel='stylesheet';l.href=u('gift/gift.css');l.onload=l.onerror=r;document.head.appendChild(l)}).then(()=>import(u('gift/gift.js'))).catch(e=>{mod=null;throw e}));
 const unlock=()=>{try{const A=window.AudioContext||window.webkitAudioContext;if(!A)return;const c=window.__giftAC;if(!c||c.state==='closed')window.__giftAC=new A();else c.resume()}catch(e){}};
-const open=el=>{if(busy||document.documentElement.classList.contains('gift-open'))return;busy=1;unlock();try{getSelection().removeAllRanges()}catch(e){}
+const open=el=>{if(busy||document.documentElement.classList.contains('gift-open'))return;busy=1;unlock();
 load().then(m=>m.giftOpen(el)).catch(()=>{}).finally(()=>{busy=0})};
-[head,foot].forEach(el=>{if(!el)return;let t=0,replay=0; /* Shifat 1:53 PM: a double-click must not also fire the single-click scroll; single click waits 280 ms */
-el.addEventListener('click',e=>{if(replay)return;e.preventDefault();e.stopImmediatePropagation();clearTimeout(t);if(e.detail>1)return;t=setTimeout(()=>{replay=1;try{el.click()}finally{replay=0}},280)},true);
-el.addEventListener('dblclick',()=>clearTimeout(t),true)});
-[head,foot].forEach(el=>{if(!el)return;
-el.addEventListener('dblclick',e=>{e.preventDefault();open(el)});
-el.addEventListener('pointerup',e=>{if(e.pointerType!=='touch')return;const t=e.timeStamp;if(t-lastT<330&&Math.abs(e.clientX-lastX)<40&&Math.abs(e.clientY-lastY)<40){lastT=0;open(el)}else{lastT=t;lastX=e.clientX;lastY=e.clientY}})});
-if(foot){foot.setAttribute('role','button');foot.tabIndex=0;foot.setAttribute('aria-haspopup','dialog');foot.style.touchAction='manipulation';
-foot.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open(foot)}})}
+const btn=document.createElement('button');btn.type='button';btn.className='gift-sticker';btn.setAttribute('aria-label','Open gift');btn.setAttribute('aria-haspopup','dialog');
+ft.appendChild(btn);
+const ACC=[255,46,147],GIFT_D='M216,72H180.92c.39-.33.79-.65,1.17-1A29.53,29.53,0,0,0,192,49.57,32.62,32.62,0,0,0,158.44,16,29.53,29.53,0,0,0,137,25.91a54.94,54.94,0,0,0-9,14.48,54.94,54.94,0,0,0-9-14.48A29.53,29.53,0,0,0,97.56,16,32.62,32.62,0,0,0,64,49.57,29.53,29.53,0,0,0,73.91,71c.38.33.78.65,1.17,1H40A16,16,0,0,0,24,88v32a16,16,0,0,0,16,16v64a16,16,0,0,0,16,16h60a4,4,0,0,0,4-4V120H40V88h80v32h16V88h80v32H136v92a4,4,0,0,0,4,4h60a16,16,0,0,0,16-16V136a16,16,0,0,0,16-16V88A16,16,0,0,0,216,72ZM84.51,59a13.69,13.69,0,0,1-4.5-10A16.62,16.62,0,0,1,96.59,32h.49a13.69,13.69,0,0,1,10,4.5c8.39,9.48,11.35,25.2,12.39,34.92C109.71,70.39,94,67.43,84.51,59Zm87,0c-9.49,8.4-25.24,11.36-35,12.4C137.7,60.89,141,45.5,149,36.51a13.69,13.69,0,0,1,10-4.5h.49A16.62,16.62,0,0,1,176,49.08,13.69,13.69,0,0,1,171.49,59Z',TILT=-8*Math.PI/180;
+const drawSticker=(W,S,k,shadow)=>{const cv=document.createElement('canvas');cv.width=cv.height=Math.round(W*k);const c=cv.getContext('2d');
+c.scale(k,k);c.translate(W/2,W/2);c.rotate(TILT);const R=S/2,m=S*0.075;
+const shape=r=>{c.beginPath();c.roundRect?c.roundRect(-r,-r,r*2,r*2,r*0.36):c.rect(-r,-r,r*2,r*2)};
+if(shadow){c.save();c.shadowColor='rgba(10,12,14,.28)';c.shadowBlur=S*0.14;c.shadowOffsetY=S*0.05;c.fillStyle='#f4f4f2';shape(R);c.fill();c.restore()}
+c.fillStyle='#f4f4f2';shape(R);c.fill();c.fillStyle='#121315';shape(R-m);c.fill();
+const s=(R-m)*1.08,g=s/128;c.save();c.scale(g,g);c.translate(-128,-128);c.fillStyle='#ff2e93';c.fill(new Path2D(GIFT_D));c.restore();
+const gr=c.createLinearGradient(-R,-R,R,R);gr.addColorStop(0,'rgba(255,255,255,0.10)');gr.addColorStop(0.45,'rgba(255,255,255,0)');gr.addColorStop(1,'rgba(255,255,255,0.04)');
+c.fillStyle=gr;shape(R);c.fill();return cv};
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let S=0,W=0,k=1,cv=null,g=null,img=null,pts=[],buf=null,px=null,shown=false,t0=0,raf=0,fixedT=-1;const step=2,DUR=1.55,TRAVEL=0.75,ease=x=>1-Math.pow(1-x,3);
+const build=()=>{S=btn.offsetWidth||80;W=Math.round(S*2.4);k=Math.min(3,Math.max(1,window.devicePixelRatio||1));
+cv=document.createElement('canvas');cv.className='gift-sticker__cv';cv.setAttribute('aria-hidden','true');cv.width=cv.height=Math.round(W*k);cv.style.width=cv.style.height=W+'px';btn.appendChild(cv);
+g=cv.getContext('2d');img=drawSticker(W,S,k,true);const rg=drawSticker(W,S,1,false).getContext('2d').getImageData(0,0,W,W).data;
+let seed=11;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
+for(let y=0;y<W;y+=step)for(let x=0;x<W;x+=step){const i=(y*W+x)*4;if(rg[i+3]<160)continue;const a=rnd()*Math.PI*2,r=S*(0.55+rnd()*0.75),front=1-y/W;
+pts.push({tx:x,ty:y,sx:W/2+Math.cos(a)*r,sy:W/2+Math.sin(a)*r*0.8+S*0.25,c:(rg[i]<<16)|(rg[i+1]<<8)|rg[i+2],d:0.5*(front*0.7+rnd()*0.3),sw:(rnd()-0.5)*2})}
+buf=g.createImageData(cv.width,cv.height);px=new Uint32Array(buf.data.buffer)};
+const frame=now=>{raf=0;const t=fixedT>=0?fixedT:(now-t0)/1000;g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,cv.width,cv.height);
+const land=Math.min(1,Math.max(0,(t-1.05)/0.4));
+if(land<1){px.fill(0);const fade=1-land,cw=cv.width,ch=cv.height,full=Math.max(1,Math.round(step*k));
+for(const p of pts){const uu=Math.min(1,Math.max(0,(t-p.d)/TRAVEL));if(uu<=0)continue;const e=ease(uu),sw=(1-e)*p.sw*S*0.18;
+const x=p.sx+(p.tx-p.sx)*e+sw,y=p.sy+(p.ty-p.sy)*e-sw*0.5,m=Math.min(1,Math.max(0,(uu-0.45)/0.45)),r0=(p.c>>16)&255,g0=(p.c>>8)&255,b0=p.c&255,a=Math.min(1,uu*3)*fade;
+const R=ACC[0]+(r0-ACC[0])*m,G=ACC[1]+(g0-ACC[1])*m,B=ACC[2]+(b0-ACC[2])*m,col=((Math.round(a*255)<<24)|(Math.round(B)<<16)|(Math.round(G)<<8)|Math.round(R))>>>0;
+const X=Math.round(x*k),Y=Math.round(y*k),sz=uu<1?Math.max(1,Math.round(step*k*0.7)):full;
+for(let yy=0;yy<sz;yy++){const row=Y+yy;if(row<0||row>=ch)continue;for(let xx=0;xx<sz;xx++){const c_=X+xx;if(c_>=0&&c_<cw)px[row*cw+c_]=col}}}
+g.putImageData(buf,0,0)}
+if(land>0){g.globalAlpha=land;g.drawImage(img,0,0);g.globalAlpha=1}
+if(t<DUR&&shown&&fixedT<0)raf=requestAnimationFrame(frame)};
+const set=on=>{if(on===shown)return;if(!cv)build();shown=on;btn.classList.toggle('is-on',on);if(raf){cancelAnimationFrame(raf);raf=0}
+if(on){if(reduced){g.clearRect(0,0,cv.width,cv.height);g.drawImage(img,0,0);return}t0=performance.now();raf=requestAnimationFrame(frame)}else g.clearRect(0,0,cv.width,cv.height)};
+btn.addEventListener('click',e=>{e.preventDefault();open(btn)});
+/* the very end of the scroll: the footer's bottom bar fully in view */
+const end=ft.querySelector('.site-footer__bottom')||ft;
+const chk=()=>{const r=end.getBoundingClientRect();set(r.bottom<=innerHeight+2&&r.top<innerHeight)};
+addEventListener('scroll',chk,{passive:true});addEventListener('resize',chk);chk();
+window.__giftSticker={set,state:()=>({shown,points:pts.length,S,W,k}),at:t=>{if(!cv)build();shown=true;btn.classList.add('is-on');fixedT=t;if(raf){cancelAnimationFrame(raf);raf=0}frame(0)},live:()=>{fixedT=-1}};
 })();

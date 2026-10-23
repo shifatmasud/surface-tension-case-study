@@ -205,3 +205,13 @@ html.cs-hold{overflow:hidden}
 .split__x{color:var(--accent);font-weight:500;margin-right:.3em}
 .split__l:nth-of-type(1){grid-column:1}.split__l:nth-of-type(2){grid-column:3}.split__l:nth-of-type(3){grid-column:5}
 .split-m{max-width:860px}
+
+/* gift sticker (Shifat Oct 23 6:40 AM: the same sticker as the live site) */
+.site-footer{isolation:isolate}
+.site-footer .gift-sticker{position:absolute;right:var(--pad-x);bottom:calc(var(--pad-y) + 36px);width:92px;height:92px;padding:0;margin:0;border:0;border-radius:26px;background:transparent;cursor:pointer;visibility:hidden;-webkit-tap-highlight-color:transparent;z-index:3;transition:transform .5s cubic-bezier(.22,1,.36,1)}
+.site-footer .gift-sticker.is-on{visibility:visible}
+.gift-sticker__cv{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none}
+.site-footer .gift-sticker.is-on:hover{transform:translateY(-3px) rotate(-2deg) scale(1.04)}
+.site-footer .gift-sticker:focus{outline:none}
+.site-footer .gift-sticker:focus-visible{outline:2px solid #ff2e93;outline-offset:6px}
+@media (max-width:640px){.site-footer .gift-sticker{width:76px;height:76px;border-radius:22px;right:var(--pad-x);bottom:calc(var(--pad-y) + 150px)}}
