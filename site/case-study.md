@@ -160,7 +160,8 @@ First try: brute force. Render the whole frame sharper, with more pixels, anti-a
 Then I thought about how an eye, or a camera, sees: never everything in focus. So we split the frame in two.
 
 - **The world renders soft.** About half resolution on phones (0.5–0.75×). Dreamy, like depth of field.
-- **Heroes render sharp.** The stone, the crewmate, my project images and videos get their own pass: 1.5× on phones.
+- **Heroes render sharp.** The stone, the crewmate, the tablet, every sticker, and my project images and videos get their own pass: 1.0× on phones, still twice as sharp as the world.
+- **Type gets its own density.** The big GPU text renders at 1.5×, because letters show softness first. The cursor trail runs at 1.0×.
 - **The governor only touches the world.** When the phone needs room, the background softens. Heroes never do.
 
 ![Before: the crewmate at one resolution for everything](https://surface-tension-case-study.sites.tab.bot/media/split-crew-before.jpg)
@@ -169,7 +170,9 @@ Then I thought about how an eye, or a camera, sees: never everything in focus. S
 
 Making it real: the sharp stone first ignored depth and looked pasted on. Wired to the live scene, parts and particles now pass in front of it, so the stone sits inside the atom. Dissolves are GPU particles, one draw each, capped per phone. And the dive into the tablet’s sky is one camera move through the glass. No cut.
 
-The trade-off: soft edges like the tablet’s bezel can look jagged on a budget phone, and heroes lose some glow. Worth it. My idea, built with Zero.
+Sound got the same care: a limiter gives the mix headroom so nothing clips, and on phones the glass shatter drops the deep bass and harsh highs tiny speakers distort.
+
+The trade-off: heroes lose some glow on a budget phone. Worth it. My idea, built with Zero.
 
 > **Steal this:** Don’t pay for sharpness everywhere. Find where the eye lands, spend your pixels there, and let the rest go soft. Blur is a design choice, and it’s cheap.
 
