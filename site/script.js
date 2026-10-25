@@ -1,3 +1,5 @@
+/* R7.09 (Shifat Oct 24 10:00 PM "Gift scene ... too slow to trigger. & jittery"): one quiet-time queue for the footer's heavy one-off work (footer GL shaders, sticker embers, the gift's code + 3D stage). Each job runs on an idle callback once nobody has scrolled for 450 ms, one at a time, so it never lands mid-scroll or at the moment the gift is wanted. */
+window.__csQuiet=window.__csQuiet||(()=>{let lastS=-1e9,busy=0,ok=0;const q=[],D=document.documentElement,mark=()=>{lastS=performance.now()};addEventListener('scroll',mark,{passive:true});addEventListener('touchmove',mark,{passive:true});addEventListener('wheel',mark,{passive:true});const ric=window.requestIdleCallback?f=>requestIdleCallback(f,{timeout:1500}):f=>setTimeout(f,50);const pump=()=>{if(busy||!ok||!q.length)return;busy=1;const go=()=>{const w=performance.now()-lastS;if(w<450||D.classList.contains('gift-open')){setTimeout(go,Math.max(60,460-w));return}ric(()=>{if(performance.now()-lastS<450){setTimeout(go,120);return}const f=q.shift();try{f()}catch(e){}busy=0;setTimeout(pump,150)})};go()};const start=()=>setTimeout(()=>{ok=1;pump()},1000);if(document.readyState==='complete')start();else addEventListener('load',start,{once:true});return f=>{q.push(f);pump()}})();
 (()=>{/* MEDIA PRELOAD (Shifat Oct 23 2:42 PM "preload fast on first frame for better ux"): no grey box, no alt text, no broken icon, ever.
 Every image and video carries an inline tiny blurred preview (LQIP) as its background, so a box is never empty. Images off screen are
 taken over here: their src becomes a transparent placeholder of the exact same aspect ratio (no layout shift) and the real file is
@@ -191,7 +193,7 @@ if(pull>0){pull=Math.max(0,pull-LEAK*dt);if(!finger&&T-lastPush>GRACE)pull*=Math
 if(Math.abs(pull-shown)>1e-4){shown=pull;set(pull)}
 if(pull>=COMMIT){commit();return}
 if(pull>0||(restSince>=0&&(finger||T-restSince<ARM)))raf=requestAnimationFrame(step)};
-const go=()=>{if(!raf&&!RMq.matches){last=performance.now();raf=requestAnimationFrame(step)}};
+const go=()=>{if(!raf&&!RMq.matches&&!document.documentElement.classList.contains('gift-open')){last=performance.now();raf=requestAnimationFrame(step)}};
 const push=v=>{go();if(cAt>=0||RMq.matches||!atEnd()||restSince<0||now()-restSince<ARM)return;pull=Math.min(1,pull+v);lastPush=now();if(pull>=COMMIT)commit()};
 addEventListener('scroll',go,{passive:true});
 addEventListener('wheel',e=>{if(e.ctrlKey)return;let dy=e.deltaY;if(Math.abs(e.deltaX)>Math.abs(dy))return;if(e.deltaMode===1)dy*=40;else if(e.deltaMode===2)dy*=800;
@@ -308,7 +310,7 @@ gl.disable(gl.BLEND);gl.bindBuffer(gl.ARRAY_BUFFER,vb);gl.vertexAttribPointer(0,
 function quad(o,w,h){gl.bindFramebuffer(gl.FRAMEBUFFER,o?o.f:null);gl.viewport(0,0,o?o.w:w,o?o.h:h);gl.drawArrays(gl.TRIANGLES,0,3)}
 function tex(u,t,unit){gl.activeTexture(gl.TEXTURE0+unit);gl.bindTexture(gl.TEXTURE_2D,t);gl.uniform1i(u,unit)}
 const ease=x=>{const ax=.57,bx=3*(.22-.19)-ax,cx=1-ax-bx,ay=3,by=-ay,cy=1-ay-by;let t=x;for(let i=0;i<6;i++){const xt=((cx*t+bx)*t+ax)*t-x,d=(3*cx*t+2*bx)*t+ax;if(Math.abs(d)<1e-6)break;t=Math.min(1,Math.max(0,t-xt/d))}return((cy*t+by)*t+ay)*t};
-function frame(now){raf=0;if(!on||dead)return;if(dirty)measure();
+function frame(now){raf=0;if(!on||dead)return;if(document.documentElement.classList.contains('gift-open')){last=0;return}if(dirty)measure();
 const dt=Math.min(.1,Math.max(.001,(now-(last||now-16))/1000));last=now;
 const r=cv.getBoundingClientRect(),dTop=lastTop==null?0:r.top-lastTop;lastTop=r.top;
 const s=sDelta;sDelta=0;const jump=Math.abs(s)>innerHeight*.5||Math.abs(dTop)>innerHeight*.5;
@@ -332,7 +334,7 @@ stkCompose();
 gl.useProgram(P.dist.p);const q=P.dist.u;tex(q.u_scene,(stkOn?T.s:T.bar).t,0);tex(q.u_paint,dst.t,1);gl.uniform2f(q.u_ptx,1/pw,1/ph);gl.uniform2f(q.u_css,cw,ch);gl.uniform3f(q.u_bg,bg[0],bg[1],bg[2]);gl.uniform1f(q.u_on,1);quad(null,cv.width,cv.height);
 if(!H.classList.contains('foot-glbar'))H.classList.add('foot-glbar');
 if(vis&&idle<3){if(!raf)raf=requestAnimationFrame(frame)}else{last=0}}
-function kick(){if(on&&vis&&!raf&&!dead){idle=0;raf=requestAnimationFrame(frame)}}
+function kick(){if(on&&vis&&!raf&&!dead&&!document.documentElement.classList.contains('gift-open')){idle=0;raf=requestAnimationFrame(frame)}}
 function init(){if(on||dead)return;cv=document.createElement('canvas');cv.className='overscroll__gl';cv.setAttribute('aria-hidden','true');
 const o={alpha:false,antialias:false,depth:false,stencil:false,premultipliedAlpha:false,preserveDrawingBuffer:false,powerPreference:'low-power'};
 try{gl=cv.getContext('webgl',o)||cv.getContext('experimental-webgl',o)}catch(e){gl=null}if(!gl){dead=1;return}
@@ -352,7 +354,8 @@ addEventListener('touchmove',e=>{const t=e.touches[0];if(t)mv(t.clientX,t.client
 addEventListener('scroll',()=>{sDelta+=scrollY-lastSY;lastSY=scrollY;kick()},{passive:true});
 addEventListener('resize',()=>{dirty=1;kick()});addEventListener('cs-barf',()=>kick());if(window.ResizeObserver)new ResizeObserver(()=>{dirty=1;kick()}).observe(ft);
 document.fonts&&document.fonts.ready&&document.fonts.ready.then(()=>{dirty=1;kick()})}
-new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting)){init()}},{rootMargin:'600px 0px'}).observe(ft);
+window.__csQuiet(init);new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting)){init()}},{rootMargin:'600px 0px'}).observe(ft);
+addEventListener('cs-gift-closed',()=>{lastTop=null;kick()});
 })();
 (()=>{
 /* GIFT (Shifat Oct 23 6:40 AM "Case study ... needs same gift sticker. They must truly feel like one sites pages"):
@@ -364,7 +367,7 @@ const ft=document.querySelector('.site-footer');if(!ft)return;
 let mod=null,busy=0;
 const load=()=>mod||(mod=new Promise(r=>{const l=document.createElement('link');l.rel='stylesheet';l.href=u('gift/gift.css');l.onload=l.onerror=r;document.head.appendChild(l)}).then(()=>import(u('gift/gift.js'))).catch(e=>{mod=null;throw e}));
 const unlock=()=>{try{const A=window.AudioContext||window.webkitAudioContext;if(!A)return;const c=window.__giftAC;if(!c||c.state==='closed')window.__giftAC=new A();else c.resume()}catch(e){}};
-const hasGL=()=>{try{const c=document.createElement('canvas');const g=c.getContext('webgl2')||c.getContext('webgl');if(!g)return false;const x=g.getExtension('WEBGL_lose_context');x&&x.loseContext();return true}catch(e){return false}};const noGL=()=>{if(document.querySelector('.gift-nogl'))return;const d=document.createElement('div');d.className='gift-nogl';d.setAttribute('role','dialog');d.setAttribute('aria-label','Gift');d.innerHTML='<div class="gift-nogl__card"><p class="gift-nogl__t">The gift is a small 3D scene.</p><p>Your browser has 3D (WebGL) switched off right now. Restart the browser or open this page on another device to unwrap it.</p><button type="button" class="gift-nogl__x">Close</button></div>';const close=()=>{d.remove();document.removeEventListener('keydown',k)};const k=e=>{if(e.key==='Escape')close()};d.addEventListener('click',e=>{if(e.target===d||e.target.classList.contains('gift-nogl__x'))close()});document.addEventListener('keydown',k);document.body.appendChild(d);d.querySelector('button').focus()};const open=el=>{if(busy||document.documentElement.classList.contains('gift-open'))return;if(!hasGL()){noGL();return}busy=1;unlock();
+let GLOK;const hasGL=()=>GLOK===undefined?(GLOK=probeGL()):GLOK;const probeGL=()=>{try{const c=document.createElement('canvas');const g=c.getContext('webgl2')||c.getContext('webgl');if(!g)return false;const x=g.getExtension('WEBGL_lose_context');x&&x.loseContext();return true}catch(e){return false}};const noGL=()=>{if(document.querySelector('.gift-nogl'))return;const d=document.createElement('div');d.className='gift-nogl';d.setAttribute('role','dialog');d.setAttribute('aria-label','Gift');d.innerHTML='<div class="gift-nogl__card"><p class="gift-nogl__t">The gift is a small 3D scene.</p><p>Your browser has 3D (WebGL) switched off right now. Restart the browser or open this page on another device to unwrap it.</p><button type="button" class="gift-nogl__x">Close</button></div>';const close=()=>{d.remove();document.removeEventListener('keydown',k)};const k=e=>{if(e.key==='Escape')close()};d.addEventListener('click',e=>{if(e.target===d||e.target.classList.contains('gift-nogl__x'))close()});document.addEventListener('keydown',k);document.body.appendChild(d);d.querySelector('button').focus()};const open=el=>{if(busy||document.documentElement.classList.contains('gift-open'))return;if(!hasGL()){noGL();return}busy=1;unlock();
 load().then(m=>m.giftOpen(el)).catch(()=>{}).finally(()=>{busy=0})};
 const btn=document.createElement('button');btn.type='button';btn.className='gift-sticker';btn.setAttribute('aria-label','Open gift');btn.setAttribute('aria-haspopup','dialog');
 ft.appendChild(btn);
@@ -497,7 +500,18 @@ if(on){if(reduced){g.clearRect(0,0,cv.width,cv.height);g.drawImage(img,0,0);retu
 btn.addEventListener('click',e=>{e.preventDefault();if(suppressClick){suppressClick=false;return}if(st.fly>0)return;open(btn)});
 /* the very end of the scroll: the footer's bottom bar fully in view */
 const end=ft.querySelector('.site-footer__bottom')||ft;
-const chk=()=>{const r=end.getBoundingClientRect();set(r.bottom<=innerHeight+2&&r.top<innerHeight)};
-addEventListener('scroll',chk,{passive:true});addEventListener('resize',chk);chk();
+/* R7.09: it gathers as soon as its own spot is half in view (it used to wait for the last line of the page), and it only resets once that spot is fully out of view again (no flicker at the edge when the phone's URL bar moves). One layout read per frame, not per scroll event. */
+let slotOff=null,chkRaf=0;
+const chk=()=>{chkRaf=0;const er=end.getBoundingClientRect();if(!btn.style.transform){slotOff=btn.getBoundingClientRect().top-er.top}
+const top=er.top+(slotOff==null?-(btn.offsetHeight||80):slotOff),h=btn.offsetHeight||80;
+if(!shown){if(top+h*0.5<=innerHeight&&er.top<innerHeight)set(true)}else if(top>=innerHeight+8)set(false)};
+const chkSoon=()=>{if(!chkRaf)chkRaf=requestAnimationFrame(chk)};
+addEventListener('scroll',chkSoon,{passive:true});addEventListener('resize',chkSoon);chk();
+/* R7.09: everything heavy is done ahead, in quiet moments: the embers (were built on the trigger frame, ~0.6 s simulated phone stall), the WebGL check, the gift's code and its whole 3D stage with every shader compiled (were all done on the first tap, ~2.2 s simulated). */
+const Q=window.__csQuiet,D_=document.documentElement,ric=window.requestIdleCallback?(f,t)=>requestIdleCallback(f,{timeout:t}):(f)=>setTimeout(f,30);
+const warmGift=()=>{if(!hasGL())return;Q(()=>{load().then(m=>Q(()=>{if(!D_.classList.contains('gift-open')&&m.giftWarm)m.giftWarm()})).catch(()=>{})})};
+Q(()=>{if(!cv)build()});Q(()=>{hasGL()});Q(warmGift);
+new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting)&&!cv)ric(()=>{if(!cv)build()},400)},{rootMargin:'150% 0px'}).observe(ft);
+addEventListener('cs-gift-closed',()=>{Q(warmGift)});
 window.__giftSticker={set,state:()=>({shown,points:pts.length,S,W,k,peel:+st.peel.value.toFixed(3),lift:+st.lift.value.toFixed(3),ox:+st.ox.value.toFixed(1),oy:+st.oy.value.toFixed(1),fly:st.fly}),at:t=>{if(!cv)build();shown=true;btn.classList.add('is-on');fixedT=t;if(raf){cancelAnimationFrame(raf);raf=0}frame(0)},live:()=>{fixedT=-1}};
 })();
