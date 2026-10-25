@@ -236,6 +236,48 @@ The rest of the UI follows the same idea: the header ink, the rolling masked tex
 
 One note on Lighthouse: under its test conditions the site shows a lighter, no-WebGL fallback, so its score says nothing about the 3D on a phone. We never used it as proof of phone speed. Know what your tools are actually measuring.
 
+## How we work together
+
+This chapter is written during R7.10, the release I'm in the middle of. The goal: zero pixelation on my two devices, at no extra cost. Here is how Zero, my AI assistant, and I actually run it. It's the method I'd use on any project now.
+
+**The loop:** 1 Benchmark (riptide v2, the one restore point) → 2 One scene (one preview build at a time) → 3 Gates (locked diff 0 · cost ≤ 1.00×) → 4 Eyes (my phone + clean reviewer) → 5 Preview (checksums match) → 6 Next scene, or "ship" from me. A bug found at step 4 goes straight back into step 2.
+
+1. **One benchmark, one restore point.** The version that's live, riptide v2, is the reference for every comparison and the only copy we keep. Everything else lives in git. Work happens in one preview build, improved in place.
+2. **Hard locks.** A fixed list of files has to stay byte-identical to the benchmark: footer and CTA, the gift, the preloader, the cursor trail, viewport and scroll, styles. A build only moves on if the locked-file diff is 0. Only I lift a lock, one element at a time.
+3. **Same cost, more quality.** A build can't publish if it's heavier than the benchmark on my two real devices: my Galaxy M02s and my PC with an Intel UHD 600. Any headroom goes into sharpness. Speed is reported against the benchmark (0.95×, 1.00×) and marked simulated until it's measured on the real hardware.
+4. **Scene by scene.** Each preview release fixes one scene completely on both devices: the hero lake, then the footer asteroids, then the dive, then the rest. One scene at a time makes every bug easy to place.
+5. **Real eyes, then clean eyes.** My phone catches what emulators miss. After every build, a fresh reviewer that isn't told what changed captures the scene frame by frame next to the benchmark and returns a ranked bug list.
+6. **Many hands, one publisher.** A main builder, a PC specialist that hands over patches, and the reviewer work at the same time. Only the builder can publish.
+7. **Truth rules.** No speed claim until both devices are measured. "Live" only after the checksums match on every URL. Every claim is checked before it reaches me, and a mistake is corrected the moment it's found.
+8. **A steady rhythm.** A short update every 10 minutes. I steer in a few words. A decision is written down once, then followed.
+
+### What my phone caught
+
+In build 5, my phone showed the stone sliced flat where it meets the lake. The test browser had missed it. A new lake layer never got told its screen size, so its underside covered the stone's lower half. Zero reproduced my screenshot, found the cause and fixed it in the next build. The clean reviewer, told nothing, found the same cut on its own.
+
+![My Galaxy M02s on build 5: the stone is sliced flat at the lake surface.](https://surface-tension-case-study.sites.tab.bot/media/how-phone-real.jpg)
+![The benchmark, riptide v2, at the same frame.](https://surface-tension-case-study.sites.tab.bot/media/how-bench-ref.jpg)
+![The clean reviewer's capture of build 5: the same cut, found on its own.](https://surface-tension-case-study.sites.tab.bot/media/how-review-b5.jpg)
+*Build 5, same frame. Left: my Galaxy M02s. Middle: the benchmark, riptide v2. Right: the clean reviewer's capture, made without being told what to look for. Fixed in build 6.*
+
+**Who does what:** Me: steer, real devices, unlock, ship. Zero: runs the work, checks every claim. Under Zero: the builder (the only one who publishes), a PC specialist (hands patches to the builder) and a reviewer (never told what changed).
+
+### How a lock gets lifted
+
+![My phone screenshot of the footer: the asteroids look blocky.](https://surface-tension-case-study.sites.tab.bot/media/how-asteroids-real.jpg)
+
+> **Shifat:** Pixelated, looks cheap
+>
+> **Zero:** Agreed, the asteroids are blocky. That's the footer, which you hard-locked. Unlock just the asteroids so I can make them sharp at the same speed? Footer timing and motion stay exactly as they are. Yes/No
+>
+> **Shifat:** Unlock
+
+*One element unlocked. Everything else in the footer stays exactly riptide v2.*
+
+> **The mind:** The curse of knowledge: once you know what changed, you can't look at it fresh. You check the thing you fixed and your eye slides past the rest. A reviewer who doesn't know the story looks at every pixel.
+
+> **Steal this:** Keep one benchmark and measure every build against it. Lock what you love. Gate every build on "no heavier, no locked file touched". Then give a reviewer the screenshots, not the story.
+
 ## What I'd tell you to steal
 
 1. **Scroll is the story.** One clock, one scroll value per frame, exponential easing, a 0→1 progress per chapter, and native scrolling on phones.
