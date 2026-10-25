@@ -247,7 +247,7 @@ This chapter is written during R7.10, the release I'm in the middle of. The goal
 3. **Same cost, more quality.** A build can't publish if it's heavier than the benchmark on my two real devices: my Galaxy M02s and my PC with an Intel UHD 600. Any headroom goes into sharpness. Speed is reported against the benchmark (0.95×, 1.00×) and marked simulated until it's measured on the real hardware.
 4. **Scene by scene.** Each preview release fixes one scene completely on both devices: the hero lake, then the footer asteroids, then the dive, then the rest. One scene at a time makes every bug easy to place.
 5. **Real eyes, then clean eyes.** My phone catches what emulators miss. After every build, a fresh reviewer that isn't told what changed captures the scene frame by frame next to the benchmark and returns a ranked bug list.
-6. **Many hands, one publisher.** A main builder, a PC specialist that hands over patches, and the reviewer work at the same time. Only the builder can publish.
+6. **Many hands, one publisher.** A Builder, a Patcher that hands over patches, and the reviewer work at the same time. Only the builder can publish.
 7. **Truth rules.** No speed claim until both devices are measured. "Live" only after the checksums match on every URL. Every claim is checked before it reaches me, and a mistake is corrected the moment it's found.
 8. **A steady rhythm.** A short update every 10 minutes. I steer in a few words. A decision is written down once, then followed.
 
@@ -260,7 +260,7 @@ In build 5, my phone showed the stone sliced flat where it meets the lake. The t
 ![The clean reviewer's capture of build 5: the same cut, found on its own.](https://surface-tension-case-study.sites.tab.bot/media/how-review-b5.jpg)
 *Build 5, same frame. Left: my Galaxy M02s. Middle: the benchmark, riptide v2. Right: the clean reviewer's capture, made without being told what to look for. Fixed in build 6.*
 
-**Who does what:** Me: steer, real devices, unlock, ship. Zero: runs the work, checks every claim. Under Zero: the builder (the only one who publishes), a PC specialist (hands patches to the builder) and a reviewer (never told what changed).
+**Who does what:** Me: steer, real devices, unlock, ship. Zero: runs the work, checks every claim. Under Zero: the Builder (the only one who publishes), the Patcher (hands patches to the Builder) and the Reviewer (never told what changed).
 
 ### How a lock gets lifted
 
